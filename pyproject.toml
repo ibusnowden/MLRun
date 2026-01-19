@@ -1,0 +1,26 @@
+[project]
+name = "track-workspace"
+version = "0.1.0"
+description = "ML experiment tracking platform"
+requires-python = ">=3.10"
+readme = "README.md"
+
+[tool.uv]
+managed = true
+
+[tool.uv.workspace]
+members = ["sdks/python", "sdks/integrations"]
+
+[tool.uv.sources]
+track = { workspace = true }
+track-integrations = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=4.0",
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "pre-commit>=4.0",
+]
