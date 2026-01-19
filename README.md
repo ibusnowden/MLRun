@@ -73,19 +73,43 @@ trackstack/
 
 ### Prerequisites
 
-- Docker & Docker Compose
+- Docker & Docker Compose (recommended: [OrbStack](https://orbstack.dev/) for macOS)
 - (For development) Rust 1.85+, Node.js 22+, Python 3.10+, uv
 
 ### Run Locally
 
 ```bash
-# Start the full stack
+# Start infrastructure services
 cd infra/docker
-docker compose up -d
+docker compose up -d clickhouse postgres minio redis otel-collector
 
-# Access the UI
-open http://localhost:3000
+# Verify all services are healthy
+docker compose ps
+
+# View logs
+docker compose logs -f
 ```
+
+### Services & Ports
+
+| Service | Port | Description |
+|---------|------|-------------|
+| **ClickHouse** | 8123 (HTTP), 9000 (TCP) | Metrics and traces storage |
+| **PostgreSQL** | 5432 | Metadata (runs, params, tags, API keys) |
+| **MinIO** | 9001 (API), 9002 (Console) | Artifact storage (S3-compatible) |
+| **Redis** | 6379 | Queue and cache |
+| **OTEL Collector** | 4317 (gRPC), 4318 (HTTP), 8889 (metrics) | Telemetry collection |
+| **UI** | 3000 | Next.js dashboard |
+| **API** | 3001 | Rust API gateway |
+| **Ingest** | 3002 (HTTP), 50051 (gRPC) | Ingest service |
+
+### Default Credentials (Local Dev)
+
+| Service | User | Password |
+|---------|------|----------|
+| ClickHouse | `track` | `track_dev` |
+| PostgreSQL | `track` | `track_dev` |
+| MinIO | `track` | `track_dev_secret` |
 
 ### Development Setup
 
@@ -103,6 +127,22 @@ cargo check
 
 # UI development
 cd apps/ui && npm install && npm run dev
+```
+
+### Testing Connectivity
+
+```bash
+# ClickHouse
+docker exec track-clickhouse clickhouse-client --user track --password track_dev --query "SELECT 1"
+
+# PostgreSQL
+docker exec track-postgres psql -U track -d track -c "SELECT 1"
+
+# Redis
+docker exec track-redis redis-cli PING
+
+# MinIO Console
+open http://localhost:9002
 ```
 
 ## Roadmap 2026
