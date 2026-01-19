@@ -9,6 +9,55 @@ A high-performance, open-source ML experiment tracking platform. Built for moder
 - **Local-first**: Full Docker Compose stack, privacy-first defaults, no vendor lock-in
 - **Open**: MIT licensed, OSS stack (ClickHouse + Postgres + MinIO)
 
+## How Trackstack Differs from W&B
+
+### Performance-First Architecture
+
+| Aspect | W&B | Trackstack |
+|--------|-----|------------|
+| Backend | Python/Go, proprietary | Rust (Axum/Tonic) - lower latency |
+| Metrics DB | Proprietary | ClickHouse - built for analytics at scale |
+| Query at 10k runs | Often sluggish | Target: p95 < 200ms |
+| Log → visible latency | Variable | Target: p95 < 500ms |
+
+### AI-Native from Day One
+
+W&B bolted on LLM features later. Trackstack builds them in:
+- **Eval harness**: First-class prompt sets, graders, regression detection
+- **Agent tracing**: Spans for tool calls, nested reasoning steps
+- **OTLP compatibility**: Bridge ML and infra observability
+
+### Local-First / Privacy-First
+
+| W&B | Trackstack |
+|-----|------------|
+| Cloud-first, self-hosted is enterprise tier | Docker Compose works day one |
+| Telemetry on by default | No outbound telemetry by default |
+| Vendor lock-in | OSS stack (CH + PG + MinIO) |
+
+### SDK Design
+
+| W&B | Trackstack |
+|-----|------------|
+| Sync-heavy, can block training | Async-first, non-blocking |
+| Network failure = data loss risk | Offline spool with bounded disk |
+| ~1-5% overhead reported | Target: < 1% overhead |
+
+### Transparent Benchmarks
+
+W&B doesn't publish performance numbers. Trackstack does:
+- **W1**: Run listing at scale (10k runs)
+- **W2**: Ingest throughput + latency
+- **W3**: Mixed workloads (metrics + traces + evals)
+- Reproducible scripts, published results
+
+### Technical Bets
+
+1. **ClickHouse** - 10-100x faster aggregations than general-purpose DBs
+2. **Rust ingest** - Predictable latency, no GC pauses
+3. **gRPC-first** - Efficient binary protocol, streaming support
+4. **Server-side downsampling** - Never send millions of points to browser
+
 ## Architecture
 
 ```
