@@ -28,5 +28,15 @@ htmlcov/
 *.swp
 *.swo
 
+# Rust
+target/
+Cargo.lock
+
+# Node.js / Next.js
+node_modules/
+.next/
+.turbo/
+*.tsbuildinfo
+
 # OS
 .DS_Store

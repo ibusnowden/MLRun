@@ -1,0 +1,29 @@
+# Git
+.git
+.gitignore
+
+# Rust
+target/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+.turbo/
+
+# IDE
+.idea/
+.vscode/
+
+# Docs
+docs/
+*.md
+
+# Misc
+.DS_Store
+*.log

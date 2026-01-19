@@ -1,0 +1,156 @@
+services:
+  # ============================================
+  # Infrastructure
+  # ============================================
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8-alpine
+    container_name: track-clickhouse
+    ports:
+      - "8123:8123"   # HTTP
+      - "9000:9000"   # Native
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./clickhouse/config.xml:/etc/clickhouse-server/config.d/config.xml:ro
+      - ./clickhouse/users.xml:/etc/clickhouse-server/users.d/users.xml:ro
+    environment:
+      CLICKHOUSE_DB: track
+      CLICKHOUSE_USER: track
+      CLICKHOUSE_PASSWORD: track_dev
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - track-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: track-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - track-net
+
+  # ============================================
+  # Observability
+  # ============================================
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.115.0
+    container_name: track-otel
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ../observability/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8888:8888"   # Prometheus metrics
+    networks:
+      - track-net
+
+  # ============================================
+  # Rust Services
+  # ============================================
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.rust
+      target: api
+    container_name: track-api
+    ports:
+      - "3001:3001"
+    environment:
+      RUST_LOG: info
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: track
+      CLICKHOUSE_PASSWORD: track_dev
+      CLICKHOUSE_DATABASE: track
+      REDIS_URL: redis://redis:6379
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - track-net
+
+  ingest:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.rust
+      target: ingest
+    container_name: track-ingest
+    ports:
+      - "3002:3002"   # HTTP
+      - "50051:50051" # gRPC
+    environment:
+      RUST_LOG: info
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: track
+      CLICKHOUSE_PASSWORD: track_dev
+      CLICKHOUSE_DATABASE: track
+      REDIS_URL: redis://redis:6379
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - track-net
+
+  processor:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.rust
+      target: processor
+    container_name: track-processor
+    environment:
+      RUST_LOG: info
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: track
+      CLICKHOUSE_PASSWORD: track_dev
+      CLICKHOUSE_DATABASE: track
+      REDIS_URL: redis://redis:6379
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - track-net
+
+  # ============================================
+  # Frontend
+  # ============================================
+  ui:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.ui
+    container_name: track-ui
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    depends_on:
+      - api
+    networks:
+      - track-net
+
+volumes:
+  clickhouse-data:
+  redis-data:
+
+networks:
+  track-net:
+    driver: bridge

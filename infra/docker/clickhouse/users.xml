@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <users>
+        <track>
+            <password>track_dev</password>
+            <networks>
+                <ip>::/0</ip>
+            </networks>
+            <profile>default</profile>
+            <quota>default</quota>
+            <access_management>1</access_management>
+        </track>
+    </users>
+</clickhouse>

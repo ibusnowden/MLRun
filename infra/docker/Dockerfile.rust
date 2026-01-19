@@ -1,0 +1,84 @@
+# syntax=docker/dockerfile:1
+
+# ============================================
+# Build stage
+# ============================================
+FROM rust:1.85-alpine AS builder
+
+RUN apk add --no-cache musl-dev protobuf-dev
+
+WORKDIR /app
+
+# Copy workspace files
+COPY Cargo.toml Cargo.lock ./
+COPY apps/api/Cargo.toml apps/api/Cargo.toml
+COPY services/ingest/Cargo.toml services/ingest/Cargo.toml
+COPY services/processor/Cargo.toml services/processor/Cargo.toml
+
+# Create dummy source files for dependency caching
+RUN mkdir -p apps/api/src services/ingest/src services/processor/src && \
+    echo "fn main() {}" > apps/api/src/main.rs && \
+    echo "fn main() {}" > services/ingest/src/main.rs && \
+    echo "fn main() {}" > services/processor/src/main.rs
+
+# Build dependencies only
+RUN cargo build --release --workspace
+
+# Remove dummy sources
+RUN rm -rf apps/api/src services/ingest/src services/processor/src
+
+# Copy actual source code
+COPY apps/api/src apps/api/src
+COPY services/ingest/src services/ingest/src
+COPY services/processor/src services/processor/src
+
+# Touch to invalidate cache for source files
+RUN touch apps/api/src/main.rs services/ingest/src/main.rs services/processor/src/main.rs
+
+# Build all binaries
+RUN cargo build --release --workspace
+
+# ============================================
+# Runtime base
+# ============================================
+FROM alpine:3.21 AS runtime-base
+
+RUN apk add --no-cache ca-certificates tzdata
+
+RUN addgroup -g 1000 track && \
+    adduser -u 1000 -G track -s /bin/sh -D track
+
+# ============================================
+# API service
+# ============================================
+FROM runtime-base AS api
+
+COPY --from=builder /app/target/release/track-api /usr/local/bin/track-api
+
+USER track
+EXPOSE 3001
+
+CMD ["track-api"]
+
+# ============================================
+# Ingest service
+# ============================================
+FROM runtime-base AS ingest
+
+COPY --from=builder /app/target/release/track-ingest /usr/local/bin/track-ingest
+
+USER track
+EXPOSE 3002 50051
+
+CMD ["track-ingest"]
+
+# ============================================
+# Processor service
+# ============================================
+FROM runtime-base AS processor
+
+COPY --from=builder /app/target/release/track-processor /usr/local/bin/track-processor
+
+USER track
+
+CMD ["track-processor"]
