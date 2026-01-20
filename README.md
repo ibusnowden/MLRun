@@ -1,8 +1,8 @@
-# Trackstack
+# MLRun
 
 A high-performance, open-source ML experiment tracking platform. Built for modern AI workflows with first-class support for LLM evals, agent tracing, and scale.
 
-## Why Trackstack?
+## Why MLRun?
 
 - **Performance-first**: Sub-200ms UI queries at 10k+ runs, high-throughput ingestion with server-side downsampling
 - **AI-native**: Built-in eval harness, agent/tool tracing, prompt versioning
@@ -29,7 +29,7 @@ W&B bolted on LLM features later. Trackstack builds them in:
 
 ### Local-First / Privacy-First
 
-| W&B | Trackstack |
+| W&B | MLRun      |
 |-----|------------|
 | Cloud-first, self-hosted is enterprise tier | Docker Compose works day one |
 | Telemetry on by default | No outbound telemetry by default |
@@ -37,7 +37,7 @@ W&B bolted on LLM features later. Trackstack builds them in:
 
 ### SDK Design
 
-| W&B | Trackstack |
+| W&B | MLRun      |
 |-----|------------|
 | Sync-heavy, can block training | Async-first, non-blocking |
 | Network failure = data loss risk | Offline spool with bounded disk |
@@ -45,7 +45,7 @@ W&B bolted on LLM features later. Trackstack builds them in:
 
 ### Transparent Benchmarks
 
-W&B doesn't publish performance numbers. Trackstack does:
+W&B doesn't publish performance numbers. MLRun does:
 - **W1**: Run listing at scale (10k runs)
 - **W2**: Ingest throughput + latency
 - **W3**: Mixed workloads (metrics + traces + evals)
@@ -82,7 +82,7 @@ W&B doesn't publish performance numbers. Trackstack does:
 ## Project Structure
 
 ```
-trackstack/
+MLRun/
 ├── apps/
 │   ├── ui/                 # Next.js dashboard (TypeScript)
 │   └── api/                # Rust API gateway (Axum)
@@ -164,7 +164,7 @@ docker compose logs -f
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-org/trackstack.git
+git clone https://github.com/your-org/MLRun.git
 cd trackstack
 
 # Python SDK development
@@ -220,7 +220,7 @@ open http://localhost:9002
 
 ## Benchmarks
 
-Trackstack targets measurable performance:
+MLRun targets measurable performance:
 
 | Workload | Metric | Target |
 |----------|--------|--------|
@@ -231,10 +231,10 @@ Trackstack targets measurable performance:
 ## SDK Usage (Preview)
 
 ```python
-import track
+import mlun
 
 # Initialize a run
-run = track.init(project="my-project", name="training-run-1")
+run = mlrun.init(project="my-project", name="training-run-1")
 
 # Log metrics (async, batched automatically)
 for step in range(1000):
@@ -251,15 +251,15 @@ run.finish()
 
 ```python
 # PyTorch Lightning
-from track.integrations import TrackLogger
+from mlrun.integrations import TrackLogger
 trainer = Trainer(logger=TrackLogger())
 
 # HuggingFace Transformers
-from track.integrations import TrackCallback
+from mlrun.integrations import TrackCallback
 trainer.add_callback(TrackCallback())
 
 # Optuna
-from track.integrations import TrackOptunaCallback
+from mlrun.integrations import TrackOptunaCallback
 study.optimize(objective, callbacks=[TrackOptunaCallback()])
 ```
 
