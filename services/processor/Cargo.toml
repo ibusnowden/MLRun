@@ -1,24 +1,40 @@
 [package]
-name = "track-processor"
+name = "mlrun-processor"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Track processor service - rollups, downsampling, cardinality guards"
+description = "MLRun processor service - rollups, downsampling, cardinality guards"
 
 [dependencies]
+# Internal crates
+mlrun-proto.workspace = true
+
+# Async runtime
 tokio.workspace = true
+
+# Serialization
 serde.workspace = true
 serde_json.workspace = true
+
+# Database
 clickhouse.workspace = true
+
+# Observability
 tracing.workspace = true
 tracing-subscriber.workspace = true
 opentelemetry.workspace = true
 opentelemetry-otlp.workspace = true
 tracing-opentelemetry.workspace = true
+
+# Error handling
 thiserror.workspace = true
 anyhow.workspace = true
+
+# Config
 config.workspace = true
+
+# Utils
 chrono.workspace = true
 uuid.workspace = true
 

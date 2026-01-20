@@ -1,0 +1,336 @@
+// MLRun Ingest Service
+// See: /docs/spec/ingest.md for full semantics
+//
+// The Ingest service handles high-throughput data ingestion from SDKs.
+// Designed for async, non-blocking operation with at-least-once delivery.
+
+syntax = "proto3";
+
+package mlrun.v1;
+
+option go_package = "github.com/mlrun/mlrun/gen/go/mlrun/v1;mlrunv1";
+
+import "google/protobuf/timestamp.proto";
+import "mlrun/v1/common.proto";
+
+// =============================================================================
+// Ingest Service
+// =============================================================================
+
+// IngestService handles data ingestion from ML training jobs.
+// See: /docs/spec/ingest.md
+service IngestService {
+  // Initialize a new run. Must be called before logging data.
+  // Idempotent: repeated calls with same run_id return existing run.
+  rpc InitRun(InitRunRequest) returns (InitRunResponse);
+
+  // Log a batch of metrics. Supports streaming for high-throughput.
+  // See: /docs/spec/ingest.md#idempotency-keys
+  rpc LogMetrics(LogMetricsRequest) returns (LogMetricsResponse);
+
+  // Log metrics as a bidirectional stream for maximum throughput.
+  // Client sends batches, server acknowledges with batch_ids.
+  rpc LogMetricsStream(stream LogMetricsRequest) returns (stream LogMetricsResponse);
+
+  // Log parameters (hyperparameters, config). Idempotent per name.
+  rpc LogParams(LogParamsRequest) returns (LogParamsResponse);
+
+  // Log or update tags. Tags can be modified throughout run lifecycle.
+  rpc LogTags(LogTagsRequest) returns (LogTagsResponse);
+
+  // Request a presigned URL for artifact upload.
+  // See: /docs/spec/ingest.md#artifact-presign-flow
+  rpc CreateArtifactUpload(CreateArtifactUploadRequest) returns (CreateArtifactUploadResponse);
+
+  // Finalize an artifact upload after successful S3 upload.
+  rpc FinalizeArtifactUpload(FinalizeArtifactUploadRequest) returns (FinalizeArtifactUploadResponse);
+
+  // Send heartbeat to indicate run is alive. Prevents crash detection.
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+
+  // Mark run as finished with final status.
+  rpc FinishRun(FinishRunRequest) returns (FinishRunResponse);
+}
+
+// =============================================================================
+// InitRun
+// =============================================================================
+
+// Request to initialize a new run.
+message InitRunRequest {
+  // Project this run belongs to (required)
+  ProjectId project_id = 1;
+
+  // Unique run identifier (optional - server generates if omitted)
+  // If provided and exists, returns existing run (idempotent)
+  optional string run_id = 2;
+
+  // Human-readable run name (optional, max 256 chars)
+  optional string name = 3;
+
+  // Optional description (max 4KB)
+  optional string description = 4;
+
+  // Initial tags (optional)
+  repeated Tag tags = 5;
+
+  // System information (optional, SDK auto-captures)
+  optional SystemInfo system_info = 6;
+
+  // Git information if available
+  optional GitInfo git_info = 7;
+
+  // Parent run ID for nested runs (e.g., hyperparameter sweeps)
+  optional string parent_run_id = 8;
+
+  // Resume token if resuming a crashed/interrupted run
+  // See: /docs/spec/ingest.md#run-resumption
+  optional string resume_token = 9;
+}
+
+// Git repository information.
+message GitInfo {
+  // Repository URL
+  string remote_url = 1;
+
+  // Current branch
+  string branch = 2;
+
+  // Commit SHA
+  string commit = 3;
+
+  // Whether working directory is dirty
+  bool dirty = 4;
+}
+
+// Response from InitRun.
+message InitRunResponse {
+  // Assigned run ID (may differ from request if server-generated)
+  RunId run_id = 1;
+
+  // Resume token for crash recovery
+  // SDK should persist this and provide on reconnect
+  string resume_token = 2;
+
+  // Server timestamp for clock sync
+  google.protobuf.Timestamp server_time = 3;
+
+  // Whether this was a resume of existing run
+  bool resumed = 4;
+
+  // Warnings (non-fatal issues)
+  // See: /docs/spec/ingest.md#warnings-vs-errors
+  repeated ErrorDetail warnings = 5;
+}
+
+// =============================================================================
+// LogMetrics
+// =============================================================================
+
+// Request to log a batch of metrics.
+// See: /docs/spec/ingest.md#idempotency-keys
+message LogMetricsRequest {
+  // Run to log metrics for (required)
+  RunId run_id = 1;
+
+  // Batch of metric points (max 10,000 points, max 1MB)
+  // See: /docs/spec/limits.md#batch-limits
+  MetricBatch metrics = 2;
+
+  // Client-generated batch ID for idempotency (required)
+  // Must be unique per run. UUIDv7 recommended.
+  // See: /docs/spec/ingest.md#idempotency-keys
+  string batch_id = 3;
+
+  // Sequence number within batch for ordering (optional)
+  // If provided, enables server-side reordering of out-of-order batches.
+  // See: /docs/spec/ingest.md#ordering-assumptions
+  optional int64 sequence = 4;
+}
+
+// Response from LogMetrics.
+message LogMetricsResponse {
+  // Number of points accepted
+  int64 accepted_count = 1;
+
+  // Number of points deduplicated (already seen)
+  int64 deduplicated_count = 2;
+
+  // Warnings (e.g., points with invalid names dropped)
+  // See: /docs/spec/ingest.md#warnings-vs-errors
+  repeated ErrorDetail warnings = 3;
+
+  // Server timestamp for latency tracking
+  google.protobuf.Timestamp server_time = 4;
+}
+
+// =============================================================================
+// LogParams
+// =============================================================================
+
+// Request to log parameters.
+message LogParamsRequest {
+  // Run to log params for (required)
+  RunId run_id = 1;
+
+  // Parameters to log (max 1,000 params per request)
+  // See: /docs/spec/limits.md#parameter-limits
+  repeated Parameter params = 2;
+}
+
+// Response from LogParams.
+message LogParamsResponse {
+  // Number of params accepted (new)
+  int64 accepted_count = 1;
+
+  // Number of params that already existed (idempotent)
+  int64 existing_count = 2;
+
+  // Warnings
+  repeated ErrorDetail warnings = 3;
+}
+
+// =============================================================================
+// LogTags
+// =============================================================================
+
+// Request to log or update tags.
+message LogTagsRequest {
+  // Run to log tags for (required)
+  RunId run_id = 1;
+
+  // Tags to set/update
+  repeated Tag tags = 2;
+
+  // Tags to remove (by key)
+  repeated string remove_keys = 3;
+}
+
+// Response from LogTags.
+message LogTagsResponse {
+  // Number of tags set/updated
+  int64 updated_count = 1;
+
+  // Number of tags removed
+  int64 removed_count = 2;
+
+  // Warnings
+  repeated ErrorDetail warnings = 3;
+}
+
+// =============================================================================
+// Artifact Upload
+// =============================================================================
+
+// Request to create an artifact upload (get presigned URL).
+// See: /docs/spec/ingest.md#artifact-presign-flow
+message CreateArtifactUploadRequest {
+  // Run this artifact belongs to (required)
+  RunId run_id = 1;
+
+  // Artifact metadata
+  ArtifactMetadata metadata = 2;
+
+  // Expected file size in bytes (required for presign)
+  int64 expected_size_bytes = 3;
+}
+
+// Response with presigned upload URL.
+message CreateArtifactUploadResponse {
+  // Upload ID for finalization
+  string upload_id = 1;
+
+  // Presigned PUT URL (expires in 1 hour)
+  string presigned_url = 2;
+
+  // URL expiration time
+  google.protobuf.Timestamp expires_at = 3;
+
+  // HTTP headers client must include in PUT request
+  map<string, string> required_headers = 4;
+}
+
+// Request to finalize artifact upload.
+message FinalizeArtifactUploadRequest {
+  // Upload ID from CreateArtifactUploadResponse
+  string upload_id = 1;
+
+  // Actual size uploaded (server validates against object store)
+  int64 actual_size_bytes = 2;
+
+  // MD5 checksum of uploaded content (hex-encoded)
+  string md5_checksum = 3;
+}
+
+// Response from finalize.
+message FinalizeArtifactUploadResponse {
+  // Final artifact metadata (with storage URL)
+  ArtifactMetadata artifact = 1;
+
+  // Warnings
+  repeated ErrorDetail warnings = 2;
+}
+
+// =============================================================================
+// Heartbeat
+// =============================================================================
+
+// Heartbeat to indicate run is alive.
+// SDK should send every 30 seconds. Server marks run as crashed after 5 minutes.
+message HeartbeatRequest {
+  // Run ID (required)
+  RunId run_id = 1;
+
+  // Client timestamp for drift detection
+  google.protobuf.Timestamp client_time = 2;
+}
+
+// Heartbeat response.
+message HeartbeatResponse {
+  // Server timestamp
+  google.protobuf.Timestamp server_time = 1;
+
+  // If true, server requests client to re-sync state
+  bool request_resync = 2;
+}
+
+// =============================================================================
+// FinishRun
+// =============================================================================
+
+// Request to finish a run.
+message FinishRunRequest {
+  // Run ID (required)
+  RunId run_id = 1;
+
+  // Final status
+  RunStatus status = 2;
+
+  // Exit code if applicable
+  optional int32 exit_code = 3;
+
+  // Error message if failed
+  optional string error_message = 4;
+
+  // Final summary metrics (optional)
+  // These are stored separately from time-series for quick access
+  repeated Parameter summary = 5;
+}
+
+// Response from FinishRun.
+message FinishRunResponse {
+  // Final run duration in seconds
+  double duration_seconds = 1;
+
+  // Total metrics logged
+  int64 total_metrics = 2;
+
+  // Total artifacts uploaded
+  int64 total_artifacts = 3;
+
+  // Server timestamp
+  google.protobuf.Timestamp finished_at = 4;
+
+  // Warnings
+  repeated ErrorDetail warnings = 5;
+}

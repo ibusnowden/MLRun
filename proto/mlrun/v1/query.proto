@@ -1,0 +1,515 @@
+// MLRun Query Service
+// See: /docs/spec/query.md for full semantics
+//
+// The Query service provides read access to runs, metrics, and artifacts.
+// Optimized for dashboard queries with server-side downsampling.
+
+syntax = "proto3";
+
+package mlrun.v1;
+
+option go_package = "github.com/mlrun/mlrun/gen/go/mlrun/v1;mlrunv1";
+
+import "google/protobuf/timestamp.proto";
+import "mlrun/v1/common.proto";
+import "mlrun/v1/ingest.proto";
+
+// =============================================================================
+// Query Service
+// =============================================================================
+
+// QueryService provides read access to experiment data.
+// See: /docs/spec/query.md
+service QueryService {
+  // List runs with filtering and pagination.
+  // See: /docs/spec/query.md#runs-list-filtering
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
+
+  // Get a single run by ID.
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+
+  // Get metrics for one or more runs.
+  // See: /docs/spec/query.md#metric-fetch-contract
+  rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
+
+  // Compare metrics across multiple runs with alignment.
+  // See: /docs/spec/query.md#compare-runs-alignment
+  rpc CompareRuns(CompareRunsRequest) returns (CompareRunsResponse);
+
+  // Get artifacts for a run.
+  rpc ListArtifacts(ListArtifactsRequest) returns (ListArtifactsResponse);
+
+  // Get a presigned download URL for an artifact.
+  rpc GetArtifactDownloadUrl(GetArtifactDownloadUrlRequest) returns (GetArtifactDownloadUrlResponse);
+
+  // Get summary statistics for a project.
+  rpc GetProjectStats(GetProjectStatsRequest) returns (GetProjectStatsResponse);
+
+  // Search runs by text query (name, tags, params).
+  rpc SearchRuns(SearchRunsRequest) returns (SearchRunsResponse);
+}
+
+// =============================================================================
+// ListRuns
+// =============================================================================
+
+// Request to list runs.
+// See: /docs/spec/query.md#runs-list-filtering
+message ListRunsRequest {
+  // Project to list runs from (required)
+  ProjectId project_id = 1;
+
+  // Filters (all filters are AND-ed)
+  RunFilters filters = 2;
+
+  // Sort order
+  RunSort sort = 3;
+
+  // Pagination: max runs to return (default 50, max 1000)
+  int32 page_size = 4;
+
+  // Pagination: cursor from previous response
+  // See: /docs/spec/query.md#pagination
+  string page_token = 5;
+
+  // Fields to include (empty = all fields)
+  // Supported: "summary", "params", "tags", "system_info"
+  repeated string include_fields = 6;
+}
+
+// Filters for run listing.
+message RunFilters {
+  // Filter by status
+  repeated RunStatus statuses = 1;
+
+  // Filter by tag (key=value)
+  repeated Tag tags = 2;
+
+  // Filter by name pattern (supports * wildcard)
+  optional string name_pattern = 3;
+
+  // Filter by created time range
+  optional google.protobuf.Timestamp created_after = 4;
+  optional google.protobuf.Timestamp created_before = 5;
+
+  // Filter by user/creator
+  optional string user_id = 6;
+
+  // Filter by parent run (for nested runs)
+  optional string parent_run_id = 7;
+
+  // Parameter filters (exact match)
+  repeated ParameterFilter param_filters = 8;
+}
+
+// Filter runs by parameter value.
+message ParameterFilter {
+  // Parameter name
+  string name = 1;
+
+  // Comparison operator
+  ComparisonOp op = 2;
+
+  // Value to compare against
+  string value = 3;
+}
+
+// Comparison operators for filtering.
+enum ComparisonOp {
+  COMPARISON_OP_UNSPECIFIED = 0;
+  COMPARISON_OP_EQ = 1;    // Equals
+  COMPARISON_OP_NE = 2;    // Not equals
+  COMPARISON_OP_GT = 3;    // Greater than (numeric)
+  COMPARISON_OP_GE = 4;    // Greater than or equal
+  COMPARISON_OP_LT = 5;    // Less than
+  COMPARISON_OP_LE = 6;    // Less than or equal
+  COMPARISON_OP_CONTAINS = 7;  // String contains
+}
+
+// Sort options for run listing.
+message RunSort {
+  // Field to sort by
+  RunSortField field = 1;
+
+  // Sort direction
+  SortDirection direction = 2;
+}
+
+// Fields available for sorting.
+enum RunSortField {
+  RUN_SORT_FIELD_UNSPECIFIED = 0;
+  RUN_SORT_FIELD_CREATED_AT = 1;   // Default
+  RUN_SORT_FIELD_NAME = 2;
+  RUN_SORT_FIELD_STATUS = 3;
+  RUN_SORT_FIELD_DURATION = 4;
+}
+
+// Sort direction.
+enum SortDirection {
+  SORT_DIRECTION_UNSPECIFIED = 0;
+  SORT_DIRECTION_ASC = 1;
+  SORT_DIRECTION_DESC = 2;  // Default
+}
+
+// Response from ListRuns.
+message ListRunsResponse {
+  // Runs matching the query
+  repeated Run runs = 1;
+
+  // Token for next page (empty if no more pages)
+  // See: /docs/spec/query.md#pagination
+  string next_page_token = 2;
+
+  // Total count matching filters (may be approximate for large results)
+  int64 total_count = 3;
+}
+
+// =============================================================================
+// Run
+// =============================================================================
+
+// A complete run record.
+message Run {
+  // Run identifier
+  RunId run_id = 1;
+
+  // Project this run belongs to
+  ProjectId project_id = 2;
+
+  // Human-readable name
+  string name = 3;
+
+  // Description
+  string description = 4;
+
+  // Current status
+  RunStatus status = 5;
+
+  // Tags
+  repeated Tag tags = 6;
+
+  // Parameters (hyperparameters, config)
+  repeated Parameter params = 7;
+
+  // Summary metrics (final values)
+  repeated Parameter summary = 8;
+
+  // System info captured at start
+  SystemInfo system_info = 9;
+
+  // Git info
+  GitInfo git_info = 10;
+
+  // Parent run ID (if nested)
+  optional string parent_run_id = 11;
+
+  // User/creator ID
+  string user_id = 12;
+
+  // Timestamps
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp started_at = 14;
+  google.protobuf.Timestamp finished_at = 15;
+
+  // Duration in seconds (null if still running)
+  optional double duration_seconds = 16;
+
+  // Counts
+  int64 metric_count = 17;
+  int64 artifact_count = 18;
+}
+
+// =============================================================================
+// GetRun
+// =============================================================================
+
+// Request to get a single run.
+message GetRunRequest {
+  // Run ID (required)
+  RunId run_id = 1;
+
+  // Fields to include
+  repeated string include_fields = 2;
+}
+
+// Response from GetRun.
+message GetRunResponse {
+  // The run
+  Run run = 1;
+}
+
+// =============================================================================
+// GetMetrics
+// =============================================================================
+
+// Request to get metrics for runs.
+// See: /docs/spec/query.md#metric-fetch-contract
+message GetMetricsRequest {
+  // Run IDs to fetch metrics for (max 10)
+  repeated RunId run_ids = 1;
+
+  // Metric names to fetch (empty = all metrics)
+  repeated string metric_names = 2;
+
+  // Step range filter
+  optional int64 min_step = 3;
+  optional int64 max_step = 4;
+
+  // Time range filter
+  optional google.protobuf.Timestamp min_time = 5;
+  optional google.protobuf.Timestamp max_time = 6;
+
+  // Maximum points to return per metric per run (default 1000, max 10000)
+  // Server applies downsampling if data exceeds this limit.
+  // See: /docs/spec/query.md#server-side-downsampling
+  int32 max_points = 7;
+
+  // Downsampling method (if max_points exceeded)
+  // See: /docs/spec/query.md#downsampling-methods
+  DownsampleMethod downsample_method = 8;
+}
+
+// Downsampling methods.
+// See: /docs/spec/query.md#downsampling-methods
+enum DownsampleMethod {
+  DOWNSAMPLE_METHOD_UNSPECIFIED = 0;
+  DOWNSAMPLE_METHOD_LTTB = 1;      // Largest-Triangle-Three-Buckets (default, preserves shape)
+  DOWNSAMPLE_METHOD_MIN_MAX = 2;   // Keep min/max per bucket (good for detecting extremes)
+  DOWNSAMPLE_METHOD_AVERAGE = 3;   // Average per bucket
+  DOWNSAMPLE_METHOD_FIRST = 4;     // First point per bucket
+  DOWNSAMPLE_METHOD_LAST = 5;      // Last point per bucket
+}
+
+// Response from GetMetrics.
+message GetMetricsResponse {
+  // Metrics per run
+  repeated RunMetrics run_metrics = 1;
+
+  // Whether downsampling was applied
+  bool downsampled = 2;
+
+  // Original point count before downsampling
+  int64 original_point_count = 3;
+}
+
+// Metrics for a single run.
+message RunMetrics {
+  // Run ID
+  RunId run_id = 1;
+
+  // Metrics keyed by name
+  repeated MetricSeries series = 2;
+}
+
+// A time series for a single metric.
+message MetricSeries {
+  // Metric name
+  string name = 1;
+
+  // Data points (sorted by step)
+  repeated MetricPoint points = 2;
+
+  // Statistics
+  MetricStats stats = 3;
+}
+
+// Statistics for a metric series.
+message MetricStats {
+  double min = 1;
+  double max = 2;
+  double mean = 3;
+  double last = 4;
+  int64 count = 5;
+}
+
+// =============================================================================
+// CompareRuns
+// =============================================================================
+
+// Request to compare metrics across runs.
+// See: /docs/spec/query.md#compare-runs-alignment
+message CompareRunsRequest {
+  // Run IDs to compare (max 20)
+  repeated RunId run_ids = 1;
+
+  // Metric names to compare
+  repeated string metric_names = 2;
+
+  // Alignment mode for X-axis
+  // See: /docs/spec/query.md#alignment-modes
+  AlignmentMode alignment = 3;
+
+  // Max points per series
+  int32 max_points = 4;
+}
+
+// Alignment modes for comparing runs.
+// See: /docs/spec/query.md#alignment-modes
+enum AlignmentMode {
+  ALIGNMENT_MODE_UNSPECIFIED = 0;
+  ALIGNMENT_MODE_STEP = 1;           // Align by step number (default)
+  ALIGNMENT_MODE_RELATIVE_TIME = 2;  // Align by time since run start
+  ALIGNMENT_MODE_ABSOLUTE_TIME = 3;  // Align by wall-clock time
+  ALIGNMENT_MODE_PROGRESS = 4;       // Align by % progress (0-100)
+}
+
+// Response from CompareRuns.
+message CompareRunsResponse {
+  // Aligned metrics for each run
+  repeated RunMetrics run_metrics = 1;
+
+  // Alignment info
+  AlignmentInfo alignment_info = 2;
+}
+
+// Information about how data was aligned.
+message AlignmentInfo {
+  // Alignment mode used
+  AlignmentMode mode = 1;
+
+  // Common X-axis values (steps, times, or progress %)
+  // Each RunMetrics.series.points aligns to these indices
+  repeated double x_values = 2;
+
+  // X-axis label for display
+  string x_label = 3;
+}
+
+// =============================================================================
+// ListArtifacts
+// =============================================================================
+
+// Request to list artifacts for a run.
+message ListArtifactsRequest {
+  // Run ID (required)
+  RunId run_id = 1;
+
+  // Filter by type
+  repeated ArtifactType types = 2;
+
+  // Filter by name pattern
+  optional string name_pattern = 3;
+
+  // Pagination
+  int32 page_size = 4;
+  string page_token = 5;
+}
+
+// Response from ListArtifacts.
+message ListArtifactsResponse {
+  // Artifacts
+  repeated ArtifactMetadata artifacts = 1;
+
+  // Next page token
+  string next_page_token = 2;
+
+  // Total count
+  int64 total_count = 3;
+}
+
+// =============================================================================
+// GetArtifactDownloadUrl
+// =============================================================================
+
+// Request for artifact download URL.
+message GetArtifactDownloadUrlRequest {
+  // Run ID
+  RunId run_id = 1;
+
+  // Artifact name/path
+  string artifact_name = 2;
+}
+
+// Response with presigned download URL.
+message GetArtifactDownloadUrlResponse {
+  // Presigned GET URL (expires in 1 hour)
+  string presigned_url = 1;
+
+  // URL expiration time
+  google.protobuf.Timestamp expires_at = 2;
+
+  // Artifact metadata
+  ArtifactMetadata metadata = 3;
+}
+
+// =============================================================================
+// GetProjectStats
+// =============================================================================
+
+// Request for project statistics.
+message GetProjectStatsRequest {
+  // Project ID (required)
+  ProjectId project_id = 1;
+
+  // Time range for stats
+  optional google.protobuf.Timestamp since = 2;
+}
+
+// Response with project statistics.
+message GetProjectStatsResponse {
+  // Total runs
+  int64 total_runs = 1;
+
+  // Runs by status
+  map<string, int64> runs_by_status = 2;
+
+  // Total metrics logged
+  int64 total_metrics = 3;
+
+  // Total artifacts
+  int64 total_artifacts = 4;
+
+  // Storage used in bytes
+  int64 storage_bytes = 5;
+
+  // Active users (who logged runs)
+  int64 active_users = 6;
+
+  // Time range of stats
+  google.protobuf.Timestamp stats_since = 7;
+  google.protobuf.Timestamp stats_until = 8;
+}
+
+// =============================================================================
+// SearchRuns
+// =============================================================================
+
+// Full-text search across runs.
+message SearchRunsRequest {
+  // Project ID (required)
+  ProjectId project_id = 1;
+
+  // Search query (searches name, tags, params)
+  string query = 2;
+
+  // Additional filters
+  RunFilters filters = 3;
+
+  // Pagination
+  int32 page_size = 4;
+  string page_token = 5;
+}
+
+// Response from SearchRuns.
+message SearchRunsResponse {
+  // Matching runs with relevance score
+  repeated SearchResult results = 1;
+
+  // Next page token
+  string next_page_token = 2;
+
+  // Total count
+  int64 total_count = 3;
+}
+
+// A search result with relevance score.
+message SearchResult {
+  // The run
+  Run run = 1;
+
+  // Relevance score (0-1)
+  double score = 2;
+
+  // Highlighted matches
+  repeated string highlights = 3;
+}

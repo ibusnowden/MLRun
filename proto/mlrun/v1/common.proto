@@ -1,0 +1,228 @@
+// MLRun Common Types
+// See: /docs/spec/limits.md for constraints and limits
+//
+// This file defines shared message types used across ingest and query services.
+
+syntax = "proto3";
+
+package mlrun.v1;
+
+option go_package = "github.com/mlrun/mlrun/gen/go/mlrun/v1;mlrunv1";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Identifiers
+// =============================================================================
+
+// Unique identifier for a project.
+// Projects are the top-level organizational unit.
+message ProjectId {
+  // Project identifier (e.g., "my-project", max 128 chars, alphanumeric + hyphen/underscore)
+  // See: /docs/spec/limits.md#naming-constraints
+  string value = 1;
+}
+
+// Unique identifier for a run within a project.
+// Runs represent individual experiment executions.
+message RunId {
+  // Run identifier (UUID v7 recommended for time-ordering, or user-provided)
+  // See: /docs/spec/limits.md#naming-constraints
+  string value = 1;
+}
+
+// =============================================================================
+// Metric Types
+// =============================================================================
+
+// A single metric data point.
+// See: /docs/spec/ingest.md#metric-points
+message MetricPoint {
+  // Metric name (max 256 chars, alphanumeric + dot/hyphen/underscore)
+  // See: /docs/spec/limits.md#naming-constraints
+  string name = 1;
+
+  // Step number (training iteration, epoch, etc.)
+  // Must be non-negative. Duplicate steps are deduplicated.
+  int64 step = 2;
+
+  // Metric value (NaN and Inf are preserved)
+  double value = 3;
+
+  // Wall-clock timestamp when this metric was recorded
+  // If omitted, server uses receipt time
+  google.protobuf.Timestamp timestamp = 4;
+}
+
+// A batch of metric points for efficient transmission.
+// See: /docs/spec/ingest.md#batching
+message MetricBatch {
+  // All points in this batch (max 10,000 points)
+  // See: /docs/spec/limits.md#batch-limits
+  repeated MetricPoint points = 1;
+}
+
+// =============================================================================
+// Parameter Types
+// =============================================================================
+
+// A configuration parameter (hyperparameter, config value).
+// Parameters are immutable once set for a run.
+message Parameter {
+  // Parameter name (max 256 chars)
+  string name = 1;
+
+  // Parameter value as string (max 4KB)
+  // Clients should handle type conversion
+  string value = 2;
+}
+
+// =============================================================================
+// Tag Types
+// =============================================================================
+
+// A tag attached to a run for filtering/organization.
+// Tags can be updated during or after a run.
+message Tag {
+  // Tag key (max 128 chars)
+  // See: /docs/spec/limits.md#naming-constraints
+  string key = 1;
+
+  // Tag value (max 1KB)
+  string value = 2;
+}
+
+// =============================================================================
+// Artifact Types
+// =============================================================================
+
+// Artifact type classification.
+enum ArtifactType {
+  ARTIFACT_TYPE_UNSPECIFIED = 0;
+  ARTIFACT_TYPE_MODEL = 1;       // Model checkpoints, weights
+  ARTIFACT_TYPE_DATASET = 2;     // Datasets, data samples
+  ARTIFACT_TYPE_IMAGE = 3;       // Images, visualizations
+  ARTIFACT_TYPE_AUDIO = 4;       // Audio files
+  ARTIFACT_TYPE_VIDEO = 5;       // Video files
+  ARTIFACT_TYPE_TABLE = 6;       // Tabular data (CSV, Parquet)
+  ARTIFACT_TYPE_CODE = 7;        // Source code, scripts
+  ARTIFACT_TYPE_OTHER = 99;      // Other artifacts
+}
+
+// Metadata for an artifact.
+// See: /docs/spec/ingest.md#artifact-presign-flow
+message ArtifactMetadata {
+  // Artifact name/path within the run (max 512 chars)
+  string name = 1;
+
+  // Artifact type classification
+  ArtifactType type = 2;
+
+  // MIME type (e.g., "application/octet-stream", "image/png")
+  string mime_type = 3;
+
+  // Size in bytes (set after upload)
+  int64 size_bytes = 4;
+
+  // MD5 checksum (hex-encoded, set after upload)
+  string md5_checksum = 5;
+
+  // Optional step association
+  optional int64 step = 6;
+
+  // Upload timestamp
+  google.protobuf.Timestamp created_at = 7;
+}
+
+// =============================================================================
+// Run Status
+// =============================================================================
+
+// Run lifecycle status.
+enum RunStatus {
+  RUN_STATUS_UNSPECIFIED = 0;
+  RUN_STATUS_RUNNING = 1;    // Run is actively logging data
+  RUN_STATUS_FINISHED = 2;   // Run completed successfully
+  RUN_STATUS_FAILED = 3;     // Run failed with error
+  RUN_STATUS_CRASHED = 4;    // Run crashed (detected via heartbeat timeout)
+  RUN_STATUS_KILLED = 5;     // Run was manually terminated
+}
+
+// =============================================================================
+// System Information
+// =============================================================================
+
+// System/environment metadata captured at run start.
+message SystemInfo {
+  // Hostname where the run is executing
+  string hostname = 1;
+
+  // Operating system (e.g., "Linux", "Darwin", "Windows")
+  string os = 2;
+
+  // Python version (e.g., "3.11.5")
+  string python_version = 3;
+
+  // GPU information if available
+  repeated GpuInfo gpus = 4;
+
+  // CPU count
+  int32 cpu_count = 5;
+
+  // Total memory in bytes
+  int64 memory_bytes = 6;
+}
+
+// GPU device information.
+message GpuInfo {
+  // GPU index
+  int32 index = 1;
+
+  // GPU name (e.g., "NVIDIA A100")
+  string name = 2;
+
+  // Memory in bytes
+  int64 memory_bytes = 3;
+
+  // CUDA version if applicable
+  string cuda_version = 4;
+}
+
+// =============================================================================
+// Error Types
+// =============================================================================
+
+// Error severity classification.
+// See: /docs/spec/ingest.md#warnings-vs-errors
+enum ErrorSeverity {
+  ERROR_SEVERITY_UNSPECIFIED = 0;
+  ERROR_SEVERITY_WARNING = 1;   // Degraded operation, data may be partial
+  ERROR_SEVERITY_ERROR = 2;     // Hard failure, request rejected
+}
+
+// Detailed error information.
+message ErrorDetail {
+  // Error code (service-specific)
+  string code = 1;
+
+  // Human-readable error message
+  string message = 2;
+
+  // Field that caused the error (if applicable)
+  string field = 3;
+
+  // Severity level
+  ErrorSeverity severity = 4;
+}
+
+// =============================================================================
+// Pagination
+// =============================================================================
+
+// Cursor-based pagination token.
+// See: /docs/spec/query.md#pagination
+message PageToken {
+  // Opaque cursor for next page (base64-encoded)
+  // Empty string indicates no more pages
+  string cursor = 1;
+}

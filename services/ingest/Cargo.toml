@@ -1,35 +1,50 @@
 [package]
-name = "track-ingest"
+name = "mlrun-ingest"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Track ingest service - gRPC/HTTP ingestion to queue and ClickHouse"
+description = "MLRun ingest service - gRPC/HTTP ingestion to queue and ClickHouse"
 
 [dependencies]
+# Internal crates
+mlrun-proto.workspace = true
+
+# Async runtime
 tokio.workspace = true
+
+# Web/gRPC framework
 axum.workspace = true
 tower.workspace = true
 tower-http.workspace = true
 tonic.workspace = true
 prost.workspace = true
+
+# Serialization
 serde.workspace = true
 serde_json.workspace = true
+
+# Database
 clickhouse.workspace = true
+
+# Observability
 tracing.workspace = true
 tracing-subscriber.workspace = true
 opentelemetry.workspace = true
 opentelemetry-otlp.workspace = true
 tracing-opentelemetry.workspace = true
+
+# Error handling
 thiserror.workspace = true
 anyhow.workspace = true
+
+# Config
 config.workspace = true
+
+# Utils
 chrono.workspace = true
 uuid.workspace = true
 bytes.workspace = true
-
-[build-dependencies]
-tonic-build = "0.12"
 
 [lints]
 workspace = true
