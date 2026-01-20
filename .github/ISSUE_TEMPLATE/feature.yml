@@ -1,0 +1,84 @@
+name: Feature Request
+description: Propose a new feature or enhancement
+title: "[Feature]: "
+labels: ["type:feature", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please fill out the sections below.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which area does this feature relate to?
+      options:
+        - core (infrastructure, CI)
+        - ingest (data ingestion service)
+        - query (query service, API)
+        - ui (dashboard)
+        - sdk-python (Python SDK)
+        - sdk-integrations (framework integrations)
+        - docs (documentation)
+        - other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature?
+      options:
+        - P0 (Critical - blocks release)
+        - P1 (High - should have)
+        - P2 (Medium - nice to have)
+        - P3 (Low - future consideration)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: Clear description of what you want to happen
+      placeholder: As a [user type], I want [goal] so that [benefit]
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: How do we know when this feature is complete?
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Documentation updated
+    validations:
+      required: true
+
+  - type: textarea
+    id: bench
+    attributes:
+      label: Benchmark Requirements
+      description: Any performance requirements for this feature?
+      placeholder: |
+        - Latency target: p95 < X ms
+        - Throughput target: X ops/sec
+        - Memory budget: X MB
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What other approaches did you consider?
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other context, mockups, or references

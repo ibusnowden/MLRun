@@ -1,0 +1,127 @@
+name: Epic
+description: Large feature or initiative spanning multiple issues
+title: "[Epic]: "
+labels: ["type:epic", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Epics are large initiatives that will be broken down into smaller issues.
+        Use this template for major features that span multiple PRs or milestones.
+
+  - type: dropdown
+    id: milestone
+    attributes:
+      label: Target Milestone
+      description: Which milestone is this epic targeting?
+      options:
+        - M0 (Project setup)
+        - M1 (Local-first alpha)
+        - M2 (High-throughput ingest)
+        - M3 (UI v0)
+        - M4 (Docker/K8s deployment)
+        - M5 (Benchmarks)
+        - M6 (LLM Evals)
+        - M7 (Agent tracing)
+        - M8 (Integrations v1)
+        - M9 (Reliability)
+        - M10 (Migration tools)
+        - M11 (OSS release)
+        - M12 (v1.0)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Primary Area
+      description: Which area does this epic primarily affect?
+      options:
+        - core (infrastructure, CI)
+        - ingest (data ingestion service)
+        - query (query service, API)
+        - ui (dashboard)
+        - sdk-python (Python SDK)
+        - sdk-integrations (framework integrations)
+        - docs (documentation)
+        - cross-cutting
+    validations:
+      required: true
+
+  - type: textarea
+    id: overview
+    attributes:
+      label: Overview
+      description: High-level description of this epic
+    validations:
+      required: true
+
+  - type: textarea
+    id: goals
+    attributes:
+      label: Goals
+      description: What are we trying to achieve?
+      placeholder: |
+        - Goal 1
+        - Goal 2
+        - Goal 3
+    validations:
+      required: true
+
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Non-Goals
+      description: What is explicitly out of scope?
+      placeholder: |
+        - Not doing X
+        - Deferring Y to future milestone
+
+  - type: textarea
+    id: breakdown
+    attributes:
+      label: Issue Breakdown
+      description: Sub-issues that make up this epic (can be added later)
+      placeholder: |
+        - [ ] #123 - Sub-task 1
+        - [ ] #124 - Sub-task 2
+        - [ ] TBD - Sub-task 3
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Epic Acceptance Criteria
+      description: How do we know when this epic is complete?
+      placeholder: |
+        - [ ] All sub-issues closed
+        - [ ] Documentation complete
+        - [ ] Performance targets met
+    validations:
+      required: true
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks & Dependencies
+      description: Known risks or dependencies on other work
+      placeholder: |
+        - Risk: X might delay Y
+        - Dependency: Requires Z to be complete first
+
+  - type: textarea
+    id: bench
+    attributes:
+      label: Benchmark Requirements
+      description: Performance requirements for this epic
+      placeholder: |
+        - Target latency: p95 < X ms
+        - Target throughput: X ops/sec
+        - Memory budget: X MB
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Links to design docs, RFCs, or other references
