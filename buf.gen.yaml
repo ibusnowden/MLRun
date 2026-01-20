@@ -1,0 +1,23 @@
+# buf.gen.yaml - Code generation configuration
+# See: https://buf.build/docs/configuration/v2/buf-gen-yaml
+version: v2
+
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/mlrun/mlrun/gen/go
+
+plugins:
+  # Rust generation via prost (handled separately by build.rs)
+  # This file is primarily for Python generation
+
+  # Python protobuf stubs
+  - remote: buf.build/protocolbuffers/python
+    out: sdks/python/src/mlrun/proto
+    opt:
+      - pyi_out=sdks/python/src/mlrun/proto
+
+  # Python gRPC stubs
+  - remote: buf.build/grpc/python
+    out: sdks/python/src/mlrun/proto
