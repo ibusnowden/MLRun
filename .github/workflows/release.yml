@@ -1,0 +1,341 @@
+# MLRun Release Workflow
+# Triggered on version tags (v*)
+# Builds and publishes release artifacts
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # ===========================================================================
+  # Validate Release
+  # ===========================================================================
+
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Check if prerelease (alpha, beta, rc)
+          if [[ "$VERSION" == *"-alpha"* ]] || [[ "$VERSION" == *"-beta"* ]] || [[ "$VERSION" == *"-rc"* ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+          echo "Version: $VERSION"
+          echo "Prerelease: $([[ "$VERSION" == *"-alpha"* ]] || [[ "$VERSION" == *"-beta"* ]] || [[ "$VERSION" == *"-rc"* ]] && echo true || echo false)"
+
+      - name: Validate version format
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-z]+\.[0-9]+)?$ ]]; then
+            echo "Invalid version format: $VERSION"
+            echo "Expected: X.Y.Z or X.Y.Z-prerelease.N"
+            exit 1
+          fi
+
+  # ===========================================================================
+  # Run Tests
+  # ===========================================================================
+
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    needs: [validate]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Run Rust tests
+        run: cargo test --all-features
+
+      - name: Run Python tests
+        run: |
+          uv sync --all-packages
+          uv run pytest sdks/ -m "not integration"
+
+      - name: Run contract tests
+        run: |
+          protoc --proto_path=proto -o /dev/null proto/mlrun/v1/*.proto
+
+  # ===========================================================================
+  # Build Docker Images
+  # ===========================================================================
+
+  build-api:
+    name: Build API Image
+    runs-on: ubuntu-latest
+    needs: [validate, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/Dockerfile.rust
+          target: api
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/api:${{ needs.validate.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-ingest:
+    name: Build Ingest Image
+    runs-on: ubuntu-latest
+    needs: [validate, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Ingest image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/Dockerfile.rust
+          target: ingest
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ingest:${{ needs.validate.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ingest:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-processor:
+    name: Build Processor Image
+    runs-on: ubuntu-latest
+    needs: [validate, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Processor image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/Dockerfile.rust
+          target: processor
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/processor:${{ needs.validate.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/processor:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-ui:
+    name: Build UI Image
+    runs-on: ubuntu-latest
+    needs: [validate, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push UI image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/Dockerfile.ui
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ui:${{ needs.validate.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ui:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===========================================================================
+  # Build Python Packages
+  # ===========================================================================
+
+  build-python:
+    name: Build Python Packages
+    runs-on: ubuntu-latest
+    needs: [validate, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Build SDK wheel
+        run: |
+          cd sdks/python
+          uv build
+
+      - name: Build integrations wheel
+        run: |
+          cd sdks/integrations
+          uv build
+
+      - name: Upload Python artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-packages
+          path: |
+            sdks/python/dist/*
+            sdks/integrations/dist/*
+
+  # ===========================================================================
+  # Create GitHub Release
+  # ===========================================================================
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate, build-api, build-ingest, build-processor, build-ui, build-python]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Python artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-packages
+          path: dist/
+
+      - name: Extract changelog for version
+        id: changelog
+        run: |
+          VERSION=${{ needs.validate.outputs.version }}
+          # Extract section for this version from CHANGELOG.md
+          # For now, use Unreleased section if version section doesn't exist
+          if grep -q "## \[$VERSION\]" CHANGELOG.md; then
+            NOTES=$(sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | head -n -1)
+          else
+            NOTES=$(sed -n "/## \[Unreleased\]/,/## \[/p" CHANGELOG.md | head -n -1)
+          fi
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: MLRun v${{ needs.validate.outputs.version }}
+          body: |
+            ## MLRun v${{ needs.validate.outputs.version }}
+
+            ${{ steps.changelog.outputs.notes }}
+
+            ### Docker Images
+
+            ```bash
+            # Pull images
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/api:${{ needs.validate.outputs.version }}
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ingest:${{ needs.validate.outputs.version }}
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/processor:${{ needs.validate.outputs.version }}
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ui:${{ needs.validate.outputs.version }}
+            ```
+
+            ### Python Packages
+
+            ```bash
+            pip install mlrun==${{ needs.validate.outputs.version }}
+            pip install mlrun-integrations==${{ needs.validate.outputs.version }}
+            ```
+
+            (Note: PyPI publishing will be enabled in a future release)
+          prerelease: ${{ needs.validate.outputs.prerelease }}
+          files: |
+            dist/**/*.whl
+            dist/**/*.tar.gz
+          generate_release_notes: true
+
+  # ===========================================================================
+  # Post-Release Notification
+  # ===========================================================================
+
+  notify:
+    name: Release Notification
+    runs-on: ubuntu-latest
+    needs: [validate, release]
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version**: ${{ needs.validate.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Prerelease**: ${{ needs.validate.outputs.prerelease }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Docker images pushed to ghcr.io" >> $GITHUB_STEP_SUMMARY
+          echo "- Python wheels attached to release" >> $GITHUB_STEP_SUMMARY

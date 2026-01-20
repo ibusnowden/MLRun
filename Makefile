@@ -2,6 +2,8 @@
 .PHONY: proto proto-lint proto-breaking proto-gen proto-check
 .PHONY: test-contract test-integration ci
 .PHONY: infra-up infra-down infra-logs
+.PHONY: bench-w1 bench-w2 bench-w3 bench-w1-full bench-w2-full bench-w3-full
+.PHONY: version version-check release-tag
 
 # Default target
 help:
@@ -34,6 +36,16 @@ help:
 	@echo "  make test-contract    - Run contract tests (proto validation)"
 	@echo "  make test-integration - Run integration tests (requires infra)"
 	@echo "  make ci           - Run full CI suite locally"
+	@echo ""
+	@echo "Benchmarks:"
+	@echo "  make bench-w1     - Run W1 benchmark (query at scale)"
+	@echo "  make bench-w2     - Run W2 benchmark (high-freq ingest)"
+	@echo "  make bench-w3     - Run W3 benchmark (mixed dashboard)"
+	@echo ""
+	@echo "Release:"
+	@echo "  make version      - Show current version"
+	@echo "  make version-check - Verify versions are consistent"
+	@echo "  make release-tag V=0.1.0-alpha.1 - Create release tag"
 	@echo ""
 	@echo "Infrastructure:"
 	@echo "  make infra-up     - Start infrastructure (docker-compose)"
@@ -205,6 +217,48 @@ ci: lint test test-contract proto-breaking
 	@echo "All CI checks passed!"
 
 # =============================================================================
+# Benchmark Targets
+# =============================================================================
+
+# Scaled-down benchmarks (nightly)
+bench-w1:
+	@echo "Running W1 benchmark (query at scale - scaled down)..."
+	@echo "Target: p95 < 200ms for 1,000 runs"
+	# Placeholder: actual benchmark implementation in BENCH-000
+	@echo "W1 benchmark not implemented yet"
+
+bench-w2:
+	@echo "Running W2 benchmark (high-freq ingest - scaled down)..."
+	@echo "Target: p95 < 500ms log-to-visible latency"
+	# Placeholder: actual benchmark implementation in BENCH-000
+	@echo "W2 benchmark not implemented yet"
+
+bench-w3:
+	@echo "Running W3 benchmark (mixed dashboard - scaled down)..."
+	@echo "Target: p95 < 300ms for dashboard queries"
+	# Placeholder: actual benchmark implementation in BENCH-000
+	@echo "W3 benchmark not implemented yet"
+
+# Full-scale benchmarks (release)
+bench-w1-full:
+	@echo "Running W1 benchmark (query at scale - full)..."
+	@echo "Target: p95 < 200ms for 10,000 runs"
+	# Placeholder: actual benchmark implementation in BENCH-000
+	@echo "W1 full benchmark not implemented yet"
+
+bench-w2-full:
+	@echo "Running W2 benchmark (high-freq ingest - full)..."
+	@echo "Target: p95 < 500ms at 100k metrics/sec"
+	# Placeholder: actual benchmark implementation in BENCH-000
+	@echo "W2 full benchmark not implemented yet"
+
+bench-w3-full:
+	@echo "Running W3 benchmark (mixed dashboard - full)..."
+	@echo "Target: p95 < 300ms with 50 concurrent users"
+	# Placeholder: actual benchmark implementation in BENCH-000
+	@echo "W3 full benchmark not implemented yet"
+
+# =============================================================================
 # Infrastructure targets
 # =============================================================================
 
@@ -235,3 +289,49 @@ clean:
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
+
+# =============================================================================
+# Release targets
+# =============================================================================
+
+# Current version (from Cargo.toml workspace)
+VERSION := $(shell grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+
+version:
+	@echo "Current versions:"
+	@echo "  Rust:        $(VERSION)"
+	@echo "  UI:          $$(grep '"version"' apps/ui/package.json | sed 's/.*"\([^"]*\)".*/\1/')"
+	@echo "  Python SDK:  $$(grep '^version' sdks/python/pyproject.toml | sed 's/.*"\(.*\)".*/\1/')"
+	@echo "  Integrations: $$(grep '^version' sdks/integrations/pyproject.toml | sed 's/.*"\(.*\)".*/\1/')"
+
+version-check:
+	@echo "Checking version consistency..."
+	@RUST_VER=$$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/') && \
+	UI_VER=$$(grep '"version"' apps/ui/package.json | sed 's/.*"\([^"]*\)".*/\1/') && \
+	SDK_VER=$$(grep '^version' sdks/python/pyproject.toml | sed 's/.*"\(.*\)".*/\1/') && \
+	INT_VER=$$(grep '^version' sdks/integrations/pyproject.toml | sed 's/.*"\(.*\)".*/\1/') && \
+	if [ "$$RUST_VER" = "$$UI_VER" ] && [ "$$RUST_VER" = "$$SDK_VER" ] && [ "$$RUST_VER" = "$$INT_VER" ]; then \
+		echo "All versions match: $$RUST_VER"; \
+	else \
+		echo "Version mismatch detected:"; \
+		echo "  Rust:        $$RUST_VER"; \
+		echo "  UI:          $$UI_VER"; \
+		echo "  Python SDK:  $$SDK_VER"; \
+		echo "  Integrations: $$INT_VER"; \
+		exit 1; \
+	fi
+
+release-tag:
+ifndef V
+	$(error V is not set. Usage: make release-tag V=0.1.0-alpha.1)
+endif
+	@echo "Creating release tag v$(V)..."
+	@echo "1. Running checks..."
+	@$(MAKE) check
+	@echo "2. Verifying version consistency..."
+	@$(MAKE) version-check
+	@echo "3. Creating annotated tag..."
+	git tag -a "v$(V)" -m "Release v$(V)"
+	@echo ""
+	@echo "Tag v$(V) created locally."
+	@echo "To publish the release, run: git push origin v$(V)"
