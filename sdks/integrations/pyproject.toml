@@ -1,4 +1,5 @@
 [project]
+<<<<<<< HEAD
 name = "track-integrations"
 version = "0.1.0"
 description = "Framework integrations for Track - Lightning, Hydra, Optuna, HuggingFace"
@@ -21,12 +22,28 @@ classifiers = [
 dependencies = [
     "track",
 ]
+=======
+name = "mlrun-integrations"
+version = "0.1.0"
+description = "MLRun integrations for popular ML frameworks"
+requires-python = ">=3.10"
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "MLRun Team" }]
+keywords = ["ml", "pytorch", "lightning", "huggingface", "optuna"]
+
+dependencies = ["mlrun>=0.1.0"]
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 
 [project.optional-dependencies]
 lightning = ["pytorch-lightning>=2.0"]
 hydra = ["hydra-core>=1.3"]
 optuna = ["optuna>=3.0"]
+<<<<<<< HEAD
 huggingface = ["transformers>=4.35", "datasets>=2.14"]
+=======
+transformers = ["transformers>=4.35", "datasets>=2.14"]
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 all = [
     "pytorch-lightning>=2.0",
     "hydra-core>=1.3",
@@ -34,12 +51,17 @@ all = [
     "transformers>=4.35",
     "datasets>=2.14",
 ]
+<<<<<<< HEAD
+=======
+dev = ["pytest>=8.0", "pytest-asyncio>=0.24"]
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
+<<<<<<< HEAD
 packages = ["src/track_integrations"]
 
 [tool.ruff]
@@ -54,3 +76,6 @@ python_version = "3.10"
 strict = true
 warn_return_any = true
 warn_unused_ignores = true
+=======
+packages = ["src/mlrun_integrations"]
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)

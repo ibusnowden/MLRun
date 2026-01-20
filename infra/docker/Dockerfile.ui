@@ -1,12 +1,23 @@
+<<<<<<< HEAD
 # syntax=docker/dockerfile:1
 
 # ============================================
 # Dependencies stage
 # ============================================
+=======
+# =============================================================================
+# MLRun UI - Multi-stage Next.js Dockerfile
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Dependencies
+# -----------------------------------------------------------------------------
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 FROM node:22-alpine AS deps
 
 WORKDIR /app
 
+<<<<<<< HEAD
 COPY apps/ui/package.json apps/ui/package-lock.json ./
 
 RUN npm ci
@@ -14,10 +25,22 @@ RUN npm ci
 # ============================================
 # Build stage
 # ============================================
+=======
+# Copy package files
+COPY apps/ui/package.json apps/ui/package-lock.json* ./
+
+# Install dependencies
+RUN npm ci
+
+# -----------------------------------------------------------------------------
+# Stage 2: Builder
+# -----------------------------------------------------------------------------
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+<<<<<<< HEAD
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/ui .
 
@@ -28,6 +51,21 @@ RUN npm run build
 # ============================================
 # Production stage
 # ============================================
+=======
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy source code
+COPY apps/ui .
+
+# Build application
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+# -----------------------------------------------------------------------------
+# Stage 3: Runner
+# -----------------------------------------------------------------------------
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 FROM node:22-alpine AS runner
 
 WORKDIR /app
@@ -35,9 +73,17 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+<<<<<<< HEAD
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
+=======
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy built application
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
@@ -45,7 +91,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 USER nextjs
 
 EXPOSE 3000
+<<<<<<< HEAD
 
+=======
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 

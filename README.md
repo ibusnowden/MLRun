@@ -13,12 +13,21 @@ A high-performance, open-source ML experiment tracking platform. Built for moder
 
 ### Performance-First Architecture
 
+<<<<<<< HEAD
 | Aspect | W&B | MLRun      |
 |--------|-----|------------|
 | Backend | Python/Go, proprietary | Rust (Axum/Tonic) - lower latency |
 | Metrics DB | Proprietary | ClickHouse - built for analytics at scale |
 | Query at 10k runs | Often sluggish | Target: p95 < 200ms |
 | Log → visible latency | Variable | Target: p95 < 500ms |
+=======
+| Aspect | W&B | MLRun |
+|--------|-----|-------|
+| Backend | Python/Go, proprietary | Rust (Axum/Tonic) - lower latency |
+| Metrics DB | Proprietary | ClickHouse - built for analytics at scale |
+| Query at 10k runs | Often sluggish | Target: p95 < 200ms |
+| Log -> visible latency | Variable | Target: p95 < 500ms |
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 
 ### AI-Native from Day One
 
@@ -29,20 +38,31 @@ W&B bolted on LLM features later. MLRun builds them in:
 
 ### Local-First / Privacy-First
 
+<<<<<<< HEAD
 | W&B | MLRun      |
 |-----|------------|
+=======
+| W&B | MLRun |
+|-----|-------|
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 | Cloud-first, self-hosted is enterprise tier | Docker Compose works day one |
 | Telemetry on by default | No outbound telemetry by default |
 | Vendor lock-in | OSS stack (CH + PG + MinIO) |
 
 ### SDK Design
 
+<<<<<<< HEAD
 | W&B | MLRun      |
 |-----|------------|
+=======
+| W&B | MLRun |
+|-----|-------|
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 | Sync-heavy, can block training | Async-first, non-blocking |
 | Network failure = data loss risk | Offline spool with bounded disk |
 | ~1-5% overhead reported | Target: < 1% overhead |
 
+<<<<<<< HEAD
 ### Transparent Benchmarks
 
 W&B doesn't publish performance numbers. MLRun does:
@@ -77,12 +97,37 @@ W&B doesn't publish performance numbers. MLRun does:
                     │  Processor  │     │     MinIO       │
                     │  (rollups)  │     │   (artifacts)   │
                     └─────────────┘     └─────────────────┘
+=======
+## Architecture
+
+```
++-------------+     +-------------+     +-----------------+
+|  Python SDK |---->|   Ingest    |---->|   ClickHouse    |
+|  (async +   |     |  (Rust/gRPC)|     |  (metrics/traces)|
+|   spool)    |     +-------------+     +-----------------+
++-------------+            |
+                           v
++-------------+     +-------------+     +-----------------+
+|   Next.js   |<--->|  API Gateway|<--->|    Postgres     |
+|     UI      |     |  (Rust/Axum)|     |   (metadata)    |
++-------------+     +-------------+     +-----------------+
+                           |
+                           v
+                    +-------------+     +-----------------+
+                    |  Processor  |     |     MinIO       |
+                    |  (rollups)  |     |   (artifacts)   |
+                    +-------------+     +-----------------+
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 ```
 
 ## Project Structure
 
 ```
+<<<<<<< HEAD
 MLRun/
+=======
+mlrun/
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 ├── apps/
 │   ├── ui/                 # Next.js dashboard (TypeScript)
 │   └── api/                # Rust API gateway (Axum)
@@ -96,13 +141,28 @@ MLRun/
 │   ├── docker/             # Docker Compose for local dev
 │   ├── k8s/                # Helm charts and manifests
 │   └── observability/      # OpenTelemetry collector config
+<<<<<<< HEAD
+=======
+├── proto/
+│   └── mlrun/v1/           # gRPC protocol definitions
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 ├── docs/                   # Documentation
 ├── bench/
 │   ├── generators/         # Synthetic data generators
 │   └── workloads/          # W1/W2/W3 benchmark definitions
+<<<<<<< HEAD
 └── migrations/
     ├── wandb/              # W&B export/import tools
     └── mlflow/             # MLflow adapters
+=======
+├── migrations/
+│   ├── wandb/              # W&B export/import tools
+│   └── mlflow/             # MLflow adapters
+└── tests/
+    ├── unit/               # Unit tests
+    ├── contract/           # Proto contract tests
+    └── integration/        # Integration tests
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 ```
 
 ## Tech Stack
@@ -130,6 +190,7 @@ MLRun/
 ```bash
 # Start infrastructure services
 cd infra/docker
+<<<<<<< HEAD
 docker compose up -d clickhouse postgres minio redis otel-collector
 
 # Verify all services are healthy
@@ -137,6 +198,31 @@ docker compose ps
 
 # View logs
 docker compose logs -f
+=======
+cp .env.example .env
+docker compose up -d
+
+# Verify all services are healthy
+docker compose ps
+```
+
+### Development Setup
+
+```bash
+# Clone the repo
+git clone https://github.com/your-org/mlrun.git
+cd mlrun
+
+# Build Rust services
+cargo build
+
+# Python SDK development
+uv sync --all-packages
+source .venv/bin/activate
+
+# UI development
+cd apps/ui && npm install && npm run dev
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 ```
 
 ### Services & Ports
@@ -156,6 +242,7 @@ docker compose logs -f
 
 | Service | User | Password |
 |---------|------|----------|
+<<<<<<< HEAD
 | ClickHouse | `track` | `track_dev` |
 | PostgreSQL | `track` | `track_dev` |
 | MinIO | `track` | `track_dev_secret` |
@@ -227,6 +314,11 @@ MLRun targets measurable performance:
 | **W1**: 10k runs | List/filter p95 | < 200ms |
 | **W2**: High-freq ingest | Log → visible p95 | < 500ms |
 | **W3**: Mixed (metrics + traces + evals) | Dashboard p95 | < 300ms |
+=======
+| ClickHouse | `mlrun` | `mlrun_dev` |
+| PostgreSQL | `mlrun` | `mlrun_dev` |
+| MinIO | `mlrun` | `mlrun_dev_secret` |
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 
 ## SDK Usage (Preview)
 
@@ -251,6 +343,7 @@ run.finish()
 
 ```python
 # PyTorch Lightning
+<<<<<<< HEAD
 from mlrun.integrations import TrackLogger
 trainer = Trainer(logger=TrackLogger())
 
@@ -263,6 +356,51 @@ from mlrun.integrations import TrackOptunaCallback
 study.optimize(objective, callbacks=[TrackOptunaCallback()])
 ```
 
+=======
+from mlrun_integrations import MLRunLogger
+trainer = Trainer(logger=MLRunLogger())
+
+# HuggingFace Transformers
+from mlrun_integrations import MLRunCallback
+trainer.add_callback(MLRunCallback())
+
+# Optuna
+from mlrun_integrations import MLRunOptunaCallback
+study.optimize(objective, callbacks=[MLRunOptunaCallback()])
+```
+
+## Roadmap 2026
+
+### Phase 1: MVP + Core (Q1-Q2)
+- [ ] M0: Project scaffolding + CI
+- [ ] M1: Local-first single-user alpha
+- [ ] M2: High-throughput ingest + ClickHouse schema
+- [ ] M3: UI v0 (runs table, compare view, charts)
+- [ ] M4: One-click Docker + basic K8s
+- [ ] M5: Benchmarks W1/W2 + alpha report
+
+### Phase 2: AI-Native Edge (Q2-Q3)
+- [ ] M6: LLM Evals v0
+- [ ] M7: Agent tracing + OpenTelemetry
+- [ ] M8: Integrations v1
+- [ ] M9: Reliability
+
+### Phase 3: OSS + Migration (Q3-Q4)
+- [ ] M10: Migration tools
+- [ ] M11: OSS release + docs
+- [ ] M12: Beta -> v1.0
+
+## Benchmarks
+
+MLRun targets measurable performance:
+
+| Workload | Metric | Target |
+|----------|--------|--------|
+| **W1**: 10k runs | List/filter p95 | < 200ms |
+| **W2**: High-freq ingest | Log -> visible p95 | < 500ms |
+| **W3**: Mixed workloads | Dashboard p95 | < 300ms |
+
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 ## Contributing
 
 See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.

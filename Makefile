@@ -1,7 +1,10 @@
 .PHONY: help build build-rust build-ui build-sdk check clean dev test lint fmt
+<<<<<<< HEAD
 .PHONY: proto proto-lint proto-breaking proto-gen proto-check
 .PHONY: test-contract test-integration ci
 .PHONY: infra-up infra-down infra-logs
+=======
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 
 # Default target
 help:
@@ -13,6 +16,7 @@ help:
 	@echo "  make build-ui     - Build Next.js UI"
 	@echo "  make build-sdk    - Build Python SDK"
 	@echo ""
+<<<<<<< HEAD
 	@echo "Proto (requires buf: brew install bufbuild/buf/buf):"
 	@echo "  make proto        - Run full proto pipeline (lint + gen)"
 	@echo "  make proto-lint   - Lint proto files"
@@ -20,12 +24,15 @@ help:
 	@echo "  make proto-gen    - Generate code from protos"
 	@echo "  make proto-check  - Verify generated code is up to date"
 	@echo ""
+=======
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 	@echo "Development:"
 	@echo "  make dev          - Start development environment"
 	@echo "  make dev-ui       - Start UI development server"
 	@echo "  make dev-api      - Start API server"
 	@echo "  make dev-ingest   - Start ingest server"
 	@echo ""
+<<<<<<< HEAD
 	@echo "Testing:"
 	@echo "  make check        - Run all checks (lint + test)"
 	@echo "  make lint         - Run linters"
@@ -34,6 +41,13 @@ help:
 	@echo "  make test-contract    - Run contract tests (proto validation)"
 	@echo "  make test-integration - Run integration tests (requires infra)"
 	@echo "  make ci           - Run full CI suite locally"
+=======
+	@echo "Quality:"
+	@echo "  make check        - Run all checks (lint + test)"
+	@echo "  make lint         - Run linters"
+	@echo "  make fmt          - Format code"
+	@echo "  make test         - Run tests"
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 	@echo ""
 	@echo "Infrastructure:"
 	@echo "  make infra-up     - Start infrastructure (docker-compose)"
@@ -62,6 +76,7 @@ build-sdk:
 	uv sync --all-packages
 
 # =============================================================================
+<<<<<<< HEAD
 # Proto targets
 # =============================================================================
 
@@ -112,6 +127,8 @@ proto-check: proto-lint
 	cargo build -p mlrun-proto
 
 # =============================================================================
+=======
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 # Development targets
 # =============================================================================
 
@@ -139,7 +156,11 @@ dev-processor:
 
 check: lint test
 
+<<<<<<< HEAD
 lint: lint-rust lint-python lint-ui proto-lint
+=======
+lint: lint-rust lint-python lint-ui
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 
 lint-rust:
 	@echo "Linting Rust..."
@@ -153,7 +174,11 @@ lint-python:
 
 lint-ui:
 	@echo "Linting UI..."
+<<<<<<< HEAD
 	cd apps/ui && npm run lint 2>/dev/null || echo "UI lint not configured"
+=======
+	cd apps/ui && npm run lint
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 
 fmt: fmt-rust fmt-python
 
@@ -179,6 +204,7 @@ test-ui:
 	cd apps/ui && npm test 2>/dev/null || echo "No UI tests yet"
 
 # =============================================================================
+<<<<<<< HEAD
 # Contract Tests
 # =============================================================================
 
@@ -205,6 +231,8 @@ ci: lint test test-contract proto-breaking
 	@echo "All CI checks passed!"
 
 # =============================================================================
+=======
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 # Infrastructure targets
 # =============================================================================
 

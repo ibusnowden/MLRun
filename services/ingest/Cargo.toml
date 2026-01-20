@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+<<<<<<< HEAD
 description = "MLRun ingest service - gRPC/HTTP ingestion to queue and ClickHouse"
 
 [dependencies]
@@ -45,6 +46,55 @@ config.workspace = true
 chrono.workspace = true
 uuid.workspace = true
 bytes.workspace = true
+=======
+description = "MLRun Ingest Service - High-throughput gRPC/HTTP data ingestion"
+
+[[bin]]
+name = "mlrun-ingest"
+path = "src/main.rs"
+
+[dependencies]
+# Async runtime
+tokio = { workspace = true }
+
+# Web framework (for HTTP endpoint)
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+
+# gRPC
+tonic = { workspace = true }
+prost = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Database
+clickhouse = { workspace = true }
+sqlx = { workspace = true }
+
+# Observability
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+opentelemetry = { workspace = true }
+opentelemetry-otlp = { workspace = true }
+tracing-opentelemetry = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Config
+config = { workspace = true }
+
+# Time
+chrono = { workspace = true }
+
+# Utils
+uuid = { workspace = true }
+bytes = { workspace = true }
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 
 [lints]
 workspace = true

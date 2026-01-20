@@ -1,9 +1,18 @@
 [project]
+<<<<<<< HEAD
 name = "track-workspace"
 version = "0.1.0"
 description = "ML experiment tracking platform"
 requires-python = ">=3.10"
 readme = "README.md"
+=======
+name = "mlrun-workspace"
+version = "0.1.0"
+description = "MLRun - ML experiment tracking platform"
+requires-python = ">=3.10"
+readme = "README.md"
+license = "MIT"
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 
 [tool.uv]
 managed = true
@@ -12,8 +21,13 @@ managed = true
 members = ["sdks/python", "sdks/integrations"]
 
 [tool.uv.sources]
+<<<<<<< HEAD
 track = { workspace = true }
 track-integrations = { workspace = true }
+=======
+mlrun = { workspace = true }
+mlrun-integrations = { workspace = true }
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 
 [dependency-groups]
 dev = [
@@ -24,3 +38,23 @@ dev = [
     "mypy>=1.13",
     "pre-commit>=4.0",
 ]
+<<<<<<< HEAD
+=======
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["mlrun", "mlrun_integrations"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)

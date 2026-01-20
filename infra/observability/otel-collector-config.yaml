@@ -1,3 +1,9 @@
+<<<<<<< HEAD
+=======
+# OpenTelemetry Collector Configuration for MLRun
+# Receives traces, metrics, and logs from services
+
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 receivers:
   otlp:
     protocols:
@@ -8,8 +14,14 @@ receivers:
 
 processors:
   batch:
+<<<<<<< HEAD
     timeout: 1s
     send_batch_size: 1024
+=======
+    send_batch_size: 1000
+    timeout: 10s
+    send_batch_max_size: 1500
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 
   memory_limiter:
     check_interval: 1s
@@ -21,6 +33,7 @@ exporters:
     verbosity: detailed
 
   prometheus:
+<<<<<<< HEAD
     endpoint: "0.0.0.0:8889"
     namespace: track
 
@@ -30,16 +43,37 @@ extensions:
 
 service:
   extensions: [health_check]
+=======
+    endpoint: 0.0.0.0:8889
+    namespace: mlrun
+
+service:
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
   pipelines:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch]
       exporters: [debug]
+<<<<<<< HEAD
+=======
+
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
     metrics:
       receivers: [otlp]
       processors: [memory_limiter, batch]
       exporters: [debug, prometheus]
+<<<<<<< HEAD
+=======
+
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
     logs:
       receivers: [otlp]
       processors: [memory_limiter, batch]
       exporters: [debug]
+<<<<<<< HEAD
+=======
+
+  telemetry:
+    logs:
+      level: info
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
