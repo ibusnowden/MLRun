@@ -1,23 +1,14 @@
 <?xml version="1.0"?>
 <clickhouse>
     <users>
-<<<<<<< HEAD
-        <track>
-            <password>track_dev</password>
-=======
         <mlrun>
             <password>mlrun_dev</password>
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
             <networks>
                 <ip>::/0</ip>
             </networks>
             <profile>default</profile>
             <quota>default</quota>
             <access_management>1</access_management>
-<<<<<<< HEAD
-        </track>
-    </users>
-=======
         </mlrun>
     </users>
 
@@ -41,5 +32,4 @@
             </interval>
         </default>
     </quotas>
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 </clickhouse>

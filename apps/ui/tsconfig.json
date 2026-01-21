@@ -11,11 +11,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-<<<<<<< HEAD
     "jsx": "react-jsx",
-=======
-    "jsx": "preserve",
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
     "incremental": true,
     "plugins": [
       {
@@ -26,7 +22,6 @@
       "@/*": ["./src/*"]
     }
   },
-<<<<<<< HEAD
   "include": [
     "next-env.d.ts",
     "**/*.ts",
@@ -35,8 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-=======
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
   "exclude": ["node_modules"]
 }

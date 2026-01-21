@@ -1,33 +1,4 @@
 services:
-<<<<<<< HEAD
-  # ============================================
-  # Infrastructure
-  # ============================================
-  clickhouse:
-    image: clickhouse/clickhouse-server:24.8-alpine
-    container_name: track-clickhouse
-    ports:
-      - "8123:8123"   # HTTP
-      - "9000:9000"   # Native
-    volumes:
-      - clickhouse-data:/var/lib/clickhouse
-    environment:
-      CLICKHOUSE_DB: track
-      CLICKHOUSE_USER: track
-      CLICKHOUSE_PASSWORD: track_dev
-      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
-    healthcheck:
-      test: ["CMD-SHELL", "clickhouse-client --user track --password track_dev --query 'SELECT 1' || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - track-net
-
-  postgres:
-    image: postgres:16-alpine
-    container_name: track-postgres
-=======
   # =============================================================================
   # Data Stores
   # =============================================================================
@@ -56,48 +27,11 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: mlrun-postgres
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     environment:
-<<<<<<< HEAD
-      POSTGRES_DB: track
-      POSTGRES_USER: track
-      POSTGRES_PASSWORD: track_dev
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U track -d track"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - track-net
-
-  minio:
-    image: minio/minio:latest
-    container_name: track-minio
-    ports:
-      - "9001:9000"   # API
-      - "9002:9001"   # Console
-    volumes:
-      - minio-data:/data
-    environment:
-      MINIO_ROOT_USER: track
-      MINIO_ROOT_PASSWORD: track_dev_secret
-    command: server /data --console-address ":9001"
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - track-net
-
-  redis:
-    image: redis:7-alpine
-    container_name: track-redis
-=======
       POSTGRES_DB: mlrun
       POSTGRES_USER: mlrun
       POSTGRES_PASSWORD: mlrun_dev
@@ -130,155 +64,10 @@ services:
   redis:
     image: redis:7-alpine
     container_name: mlrun-redis
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
     ports:
       - "6379:6379"
     volumes:
       - redis-data:/data
-<<<<<<< HEAD
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - track-net
-
-  # ============================================
-  # Observability
-  # ============================================
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.96.0
-    container_name: track-otel
-    command: ["--config=/etc/otel-collector-config.yaml"]
-    volumes:
-      - ../observability/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
-    ports:
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-      - "8889:8889"   # Prometheus metrics
-    networks:
-      - track-net
-
-  # ============================================
-  # Rust Services
-  # ============================================
-  api:
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.rust
-      target: api
-    container_name: track-api
-    ports:
-      - "3001:3001"
-    environment:
-      RUST_LOG: info
-      DATABASE_URL: postgres://track:track_dev@postgres:5432/track
-      CLICKHOUSE_URL: http://clickhouse:8123
-      CLICKHOUSE_USER: track
-      CLICKHOUSE_PASSWORD: track_dev
-      CLICKHOUSE_DATABASE: track
-      S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY: track
-      S3_SECRET_KEY: track_dev_secret
-      S3_BUCKET: artifacts
-      REDIS_URL: redis://redis:6379
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - track-net
-
-  ingest:
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.rust
-      target: ingest
-    container_name: track-ingest
-    ports:
-      - "3002:3002"   # HTTP
-      - "50051:50051" # gRPC
-    environment:
-      RUST_LOG: info
-      DATABASE_URL: postgres://track:track_dev@postgres:5432/track
-      CLICKHOUSE_URL: http://clickhouse:8123
-      CLICKHOUSE_USER: track
-      CLICKHOUSE_PASSWORD: track_dev
-      CLICKHOUSE_DATABASE: track
-      S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY: track
-      S3_SECRET_KEY: track_dev_secret
-      S3_BUCKET: artifacts
-      REDIS_URL: redis://redis:6379
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - track-net
-
-  processor:
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.rust
-      target: processor
-    container_name: track-processor
-    environment:
-      RUST_LOG: info
-      DATABASE_URL: postgres://track:track_dev@postgres:5432/track
-      CLICKHOUSE_URL: http://clickhouse:8123
-      CLICKHOUSE_USER: track
-      CLICKHOUSE_PASSWORD: track_dev
-      CLICKHOUSE_DATABASE: track
-      S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY: track
-      S3_SECRET_KEY: track_dev_secret
-      S3_BUCKET: artifacts
-      REDIS_URL: redis://redis:6379
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - track-net
-
-  # ============================================
-  # Frontend
-  # ============================================
-  ui:
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.ui
-    container_name: track-ui
-    ports:
-      - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3001
-    depends_on:
-      - api
-    networks:
-      - track-net
-=======
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -377,17 +166,9 @@ services:
   #   depends_on:
   #     - api
   #   restart: unless-stopped
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 
 volumes:
   clickhouse-data:
   postgres-data:
   minio-data:
   redis-data:
-<<<<<<< HEAD
-
-networks:
-  track-net:
-    driver: bridge
-=======
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)

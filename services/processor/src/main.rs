@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-fn main() {
-    println!("track-processor");
-=======
 use std::time::Duration;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -22,5 +18,4 @@ async fn main() {
         info!("Processor heartbeat - no work yet");
         tokio::time::sleep(Duration::from_secs(60)).await;
     }
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 }

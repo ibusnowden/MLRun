@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# Track Integrations
-=======
 # MLRun Integrations
 
 Framework integrations for MLRun.
@@ -60,4 +57,3 @@ study.optimize(
     callbacks=[MLRunOptunaCallback(project="my-project")]
 )
 ```
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)

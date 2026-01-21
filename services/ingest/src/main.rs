@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-fn main() {
-    println!("track-ingest");
-=======
 use axum::{routing::get, Router};
 use std::net::SocketAddr;
 use tracing::info;
@@ -35,5 +31,4 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind(http_addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 }

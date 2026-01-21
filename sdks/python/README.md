@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# Track SDK
-=======
 # MLRun Python SDK
 
 Async, non-blocking ML experiment tracking SDK.
@@ -46,4 +43,3 @@ pip install -e ".[dev]"
 # Run tests
 pytest
 ```
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)

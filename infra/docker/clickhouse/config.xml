@@ -1,6 +1,5 @@
 <?xml version="1.0"?>
 <clickhouse>
-<<<<<<< HEAD
     <logger>
         <level>information</level>
         <console>true</console>
@@ -22,30 +21,5 @@
     <tmp_path>/var/lib/clickhouse/tmp/</tmp_path>
     <user_files_path>/var/lib/clickhouse/user_files/</user_files_path>
 
-    <default_database>track</default_database>
-=======
-    <!-- Logging -->
-    <logger>
-        <level>information</level>
-        <console>1</console>
-    </logger>
-
-    <!-- Network -->
-    <http_port>8123</http_port>
-    <tcp_port>9000</tcp_port>
-    <listen_host>0.0.0.0</listen_host>
-
-    <!-- Paths -->
-    <path>/var/lib/clickhouse/</path>
-    <tmp_path>/var/lib/clickhouse/tmp/</tmp_path>
-    <user_files_path>/var/lib/clickhouse/user_files/</user_files_path>
-    <format_schema_path>/var/lib/clickhouse/format_schemas/</format_schema_path>
-
-    <!-- Memory limits -->
-    <max_server_memory_usage_to_ram_ratio>0.9</max_server_memory_usage_to_ram_ratio>
-    <max_concurrent_queries>100</max_concurrent_queries>
-
-    <!-- Query settings -->
     <default_database>mlrun</default_database>
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 </clickhouse>
