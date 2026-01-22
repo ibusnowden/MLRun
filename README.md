@@ -231,7 +231,7 @@ MLRun targets measurable performance:
 ## SDK Usage (Preview)
 
 ```python
-import mlun
+import mlrun
 
 # Initialize a run
 run = mlrun.init(project="my-project", name="training-run-1")
