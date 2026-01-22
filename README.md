@@ -9,11 +9,11 @@ A high-performance, open-source ML experiment tracking platform. Built for moder
 - **Local-first**: Full Docker Compose stack, privacy-first defaults, no vendor lock-in
 - **Open**: MIT licensed, OSS stack (ClickHouse + Postgres + MinIO)
 
-## How Trackstack Differs from W&B
+## How MLRun Differs from W&B
 
 ### Performance-First Architecture
 
-| Aspect | W&B | Trackstack |
+| Aspect | W&B | MLRun      |
 |--------|-----|------------|
 | Backend | Python/Go, proprietary | Rust (Axum/Tonic) - lower latency |
 | Metrics DB | Proprietary | ClickHouse - built for analytics at scale |
