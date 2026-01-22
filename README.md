@@ -22,7 +22,7 @@ A high-performance, open-source ML experiment tracking platform. Built for moder
 
 ### AI-Native from Day One
 
-W&B bolted on LLM features later. Trackstack builds them in:
+W&B bolted on LLM features later. MLRun builds them in:
 - **Eval harness**: First-class prompt sets, graders, regression detection
 - **Agent tracing**: Spans for tool calls, nested reasoning steps
 - **OTLP compatibility**: Bridge ML and infra observability
