@@ -1,8 +1,8 @@
 """Background worker for flushing events to the server.
 
 The worker runs in a daemon thread and periodically flushes
-batched events to the MLRun server with adaptive batching
-and optional compression.
+batched events to the MLRun server with adaptive batching,
+optional compression, and offline spooling.
 """
 
 from __future__ import annotations
@@ -16,12 +16,65 @@ from typing import TYPE_CHECKING, Any
 
 from mlrun.batching import AdaptiveBatcher, BatchConfig, BatchStats, FlushMetrics
 from mlrun.queue import Event, EventQueue, EventType
+from mlrun.spool import DiskSpool, SpoolConfig, SpoolSyncer
 from mlrun.transport.base import Transport, TransportError
 
 if TYPE_CHECKING:
     from mlrun.config import Config
 
 logger = logging.getLogger(__name__)
+
+
+class ConnectionState:
+    """Tracks connection state and offline/online transitions."""
+
+    def __init__(self) -> None:
+        self._online = True
+        self._last_success_time = time.time()
+        self._last_failure_time = 0.0
+        self._consecutive_failures = 0
+        self._lock = threading.Lock()
+
+    @property
+    def is_online(self) -> bool:
+        with self._lock:
+            return self._online
+
+    def record_success(self) -> None:
+        """Record a successful operation."""
+        with self._lock:
+            was_offline = not self._online
+            self._online = True
+            self._last_success_time = time.time()
+            self._consecutive_failures = 0
+
+            if was_offline:
+                logger.info("Connection restored - switching to online mode")
+
+    def record_failure(self) -> None:
+        """Record a failed operation."""
+        with self._lock:
+            self._last_failure_time = time.time()
+            self._consecutive_failures += 1
+
+            # Switch to offline after 3 consecutive failures
+            if self._consecutive_failures >= 3 and self._online:
+                self._online = False
+                logger.warning("Connection lost - switching to offline mode")
+
+    @property
+    def consecutive_failures(self) -> int:
+        with self._lock:
+            return self._consecutive_failures
+
+    def to_dict(self) -> dict[str, Any]:
+        with self._lock:
+            return {
+                "online": self._online,
+                "last_success_time": self._last_success_time,
+                "last_failure_time": self._last_failure_time,
+                "consecutive_failures": self._consecutive_failures,
+            }
 
 
 class FlushWorker:
@@ -32,8 +85,10 @@ class FlushWorker:
     - Metric coalescing: merge same (name, step)
     - Param/tag deduplication: keep last value
     - Optional gzip compression
+    - Offline spooling with automatic sync
 
     Handles retries with exponential backoff on failures.
+    Falls back to disk spool when server is unavailable.
     """
 
     def __init__(
@@ -68,10 +123,33 @@ class FlushWorker:
         )
         self._batcher = AdaptiveBatcher(batch_config)
 
+        # Connection state
+        self._connection = ConnectionState()
+
+        # Initialize spool if enabled
+        self._spool: DiskSpool | None = None
+        self._syncer: SpoolSyncer | None = None
+
+        if config.spool_enabled:
+            spool_config = SpoolConfig(
+                spool_dir=config.spool_dir,
+                max_file_size_bytes=config.spool_max_file_size_bytes,
+                max_total_size_bytes=config.spool_max_size_bytes,
+                sync_interval_ms=config.spool_sync_interval_ms,
+                retention_hours=config.spool_retention_hours,
+            )
+            self._spool = DiskSpool(spool_config)
+            self._syncer = SpoolSyncer(
+                spool=self._spool,
+                send_func=self._send_spooled_events,
+                check_online_func=lambda: self._connection.is_online,
+            )
+
         # Metrics
         self._metrics = FlushMetrics()
         self._batch_count = 0
         self._error_count = 0
+        self._spool_count = 0
 
     def start(self) -> None:
         """Start the background worker thread."""
@@ -86,6 +164,11 @@ class FlushWorker:
                 daemon=True,
             )
             self._thread.start()
+
+            # Start syncer if enabled
+            if self._syncer is not None:
+                self._syncer.start()
+
             logger.debug("Flush worker started")
 
     def stop(self, timeout: float = 5.0) -> None:
@@ -101,9 +184,17 @@ class FlushWorker:
             self._stop_event.set()
             self._flush_event.set()  # Wake up the worker
 
+        # Stop syncer first
+        if self._syncer is not None:
+            self._syncer.stop(timeout=timeout / 2)
+
         self._thread.join(timeout=timeout)
         if self._thread.is_alive():
             logger.warning("Flush worker did not stop cleanly")
+
+        # Flush spool to disk
+        if self._spool is not None:
+            self._spool.flush_all()
 
     def flush(self) -> None:
         """Trigger an immediate flush."""
@@ -186,8 +277,12 @@ class FlushWorker:
             return
 
         start_time = time.perf_counter()
-        self._send_batch(events, stats)
+        success = self._send_batch(events, stats)
         duration_ms = (time.perf_counter() - start_time) * 1000
+
+        # If send failed and spool is enabled, spool to disk
+        if not success and self._spool is not None:
+            self._spool_events(events)
 
         # Record metrics
         self._metrics.record_flush(
@@ -201,15 +296,22 @@ class FlushWorker:
         if stats.coalesced_count > 0:
             logger.debug(f"Coalesced {stats.coalesced_count} events")
 
-    def _send_batch(self, events: list[Event], stats: BatchStats) -> None:
+    def _send_batch(self, events: list[Event], stats: BatchStats) -> bool:
         """Send a batch of events to the server.
 
         Args:
             events: List of events to send
             stats: Batch statistics
+
+        Returns:
+            True if send succeeded, False otherwise
         """
         if not events:
-            return
+            return True
+
+        # If we're offline, don't even try
+        if not self._connection.is_online and self._spool is not None:
+            return False
 
         # Group events by type
         metrics = []
@@ -253,9 +355,10 @@ class FlushWorker:
                 f"Compressed batch: {stats.estimated_bytes} -> {len(payload)} bytes"
             )
 
-        # Send with retries
+        # Send with retries and exponential backoff
         retries = 0
         delay = self._config.retry_delay_ms / 1000.0
+        max_delay = self._config.retry_max_delay_ms / 1000.0
 
         while retries <= self._config.max_retries:
             try:
@@ -266,21 +369,70 @@ class FlushWorker:
                     raw_payload=payload if compressed else None,
                 )
                 self._batch_count += 1
+                self._connection.record_success()
                 logger.debug(
                     f"Sent batch: {len(metrics)} metrics, "
                     f"{len(params)} params, {len(tags)} tags"
                 )
-                return
+                return True
+
             except TransportError as e:
+                self._connection.record_failure()
+
                 if not e.retryable or retries >= self._config.max_retries:
                     logger.error(f"Failed to send batch: {e}")
                     self._error_count += 1
-                    return
+                    return False
 
                 logger.warning(f"Retrying batch send ({retries + 1}): {e}")
                 retries += 1
                 time.sleep(delay)
-                delay *= self._config.retry_backoff
+                delay = min(delay * self._config.retry_backoff, max_delay)
+
+        return False
+
+    def _spool_events(self, events: list[Event]) -> None:
+        """Spool events to disk when offline.
+
+        Args:
+            events: Events to spool
+        """
+        if self._spool is None:
+            return
+
+        spooled = 0
+        for event in events:
+            if self._spool.spool(event):
+                spooled += 1
+
+        if spooled > 0:
+            self._spool_count += spooled
+            logger.info(f"Spooled {spooled} events to disk (offline mode)")
+
+        # Flush spool file
+        self._spool.flush_all()
+
+    def _send_spooled_events(self, events: list[Event]) -> bool:
+        """Send events from spool (called by syncer).
+
+        Args:
+            events: Events to send
+
+        Returns:
+            True if send succeeded
+        """
+        if not events:
+            return True
+
+        # Create stats for the batch
+        stats = BatchStats(
+            event_count=len(events),
+            metric_count=sum(1 for e in events if e.type == EventType.METRIC),
+            param_count=sum(1 for e in events if e.type == EventType.PARAM),
+            tag_count=sum(1 for e in events if e.type == EventType.TAG),
+        )
+
+        return self._send_batch(events, stats)
 
     @property
     def batch_count(self) -> int:
@@ -293,9 +445,19 @@ class FlushWorker:
         return self._error_count
 
     @property
+    def spool_count(self) -> int:
+        """Number of events spooled to disk."""
+        return self._spool_count
+
+    @property
     def is_running(self) -> bool:
         """Whether the worker is currently running."""
         return self._thread is not None and self._thread.is_alive()
+
+    @property
+    def is_online(self) -> bool:
+        """Whether we're currently online."""
+        return self._connection.is_online
 
     @property
     def metrics(self) -> FlushMetrics:
@@ -308,14 +470,31 @@ class FlushWorker:
         Returns:
             Dictionary with worker stats
         """
-        return {
+        stats: dict[str, Any] = {
             "batch_count": self._batch_count,
             "error_count": self._error_count,
+            "spool_count": self._spool_count,
             "queue_size": self._queue.size,
             "queue_dropped": self._queue.dropped_count,
             "batcher": {
                 "pending_events": self._batcher.stats.event_count,
                 "pending_bytes": self._batcher.stats.estimated_bytes,
             },
+            "connection": self._connection.to_dict(),
             "flush_metrics": self._metrics.to_dict(),
         }
+
+        if self._spool is not None:
+            stats["spool"] = {
+                "pending_files": self._spool.stats.pending_files,
+                "pending_events": self._spool.stats.pending_events,
+                "pending_bytes": self._spool.stats.pending_bytes,
+                "total_synced": self._spool.stats.total_synced,
+            }
+
+        return stats
+
+    def trigger_sync(self) -> None:
+        """Manually trigger a sync attempt for spooled data."""
+        if self._syncer is not None:
+            self._syncer.trigger_sync()

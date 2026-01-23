@@ -42,10 +42,20 @@ class Config:
     max_retries: int = 3
     retry_delay_ms: int = 1000
     retry_backoff: float = 2.0
+    retry_max_delay_ms: int = 30000  # Max retry delay (30s)
 
-    # Offline mode
+    # Offline mode and spool settings
     offline_mode: bool = False
+    spool_enabled: bool = True  # Enable disk spooling when offline
     spool_dir: Path = field(default_factory=lambda: Path.home() / ".mlrun" / "spool")
+    spool_max_size_bytes: int = 100_000_000  # 100MB max spool size
+    spool_max_file_size_bytes: int = 10_000_000  # 10MB per spool file
+    spool_sync_interval_ms: int = 5000  # Sync check interval (5s)
+    spool_retention_hours: int = 72  # Keep completed files for 72h
+
+    # Connection health
+    health_check_interval_ms: int = 10000  # Health check interval (10s)
+    connection_timeout_ms: int = 5000  # Connection timeout (5s)
 
     # Debug
     debug: bool = False
@@ -71,7 +81,29 @@ class Config:
             compression_min_bytes=int(os.getenv("MLRUN_COMPRESSION_MIN_BYTES", "1000")),
             max_retries=int(os.getenv("MLRUN_MAX_RETRIES", "3")),
             retry_delay_ms=int(os.getenv("MLRUN_RETRY_DELAY_MS", "1000")),
+            retry_max_delay_ms=int(os.getenv("MLRUN_RETRY_MAX_DELAY_MS", "30000")),
             offline_mode=os.getenv("MLRUN_OFFLINE", "").lower() in truthy,
+            spool_enabled=os.getenv("MLRUN_SPOOL_ENABLED", "true").lower()
+            in truthy,
+            spool_dir=Path(
+                os.getenv("MLRUN_SPOOL_DIR", str(Path.home() / ".mlrun" / "spool"))
+            ),
+            spool_max_size_bytes=int(os.getenv("MLRUN_SPOOL_MAX_SIZE", "100000000")),
+            spool_max_file_size_bytes=int(
+                os.getenv("MLRUN_SPOOL_MAX_FILE_SIZE", "10000000")
+            ),
+            spool_sync_interval_ms=int(
+                os.getenv("MLRUN_SPOOL_SYNC_INTERVAL_MS", "5000")
+            ),
+            spool_retention_hours=int(
+                os.getenv("MLRUN_SPOOL_RETENTION_HOURS", "72")
+            ),
+            health_check_interval_ms=int(
+                os.getenv("MLRUN_HEALTH_CHECK_INTERVAL_MS", "10000")
+            ),
+            connection_timeout_ms=int(
+                os.getenv("MLRUN_CONNECTION_TIMEOUT_MS", "5000")
+            ),
             debug=os.getenv("MLRUN_DEBUG", "").lower() in truthy,
         )
 
