@@ -1,0 +1,11 @@
+# MLRun Rust Formatting Configuration
+# Run: cargo fmt
+
+# Stable options
+edition = "2024"
+max_width = 100
+tab_spaces = 4
+newline_style = "Unix"
+use_small_heuristics = "Default"
+
+# Use stable formatting for CI consistency

@@ -32,6 +32,14 @@ class MLRunLogger:
         self.project = project
         # TODO: Implement Lightning logger interface
 
+    def log_metrics(self, metrics: dict, step: int | None = None) -> None:
+        """Log metrics to MLRun."""
+        pass  # TODO: Implement
+
+    def log_hyperparams(self, params: dict) -> None:
+        """Log hyperparameters to MLRun."""
+        pass  # TODO: Implement
+
 
 class MLRunCallback:
     """HuggingFace Transformers callback integration."""

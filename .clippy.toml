@@ -1,0 +1,17 @@
+# MLRun Clippy Configuration
+# Additional clippy settings beyond Cargo.toml
+
+# Cognitive complexity threshold
+cognitive-complexity-threshold = 25
+
+# Allow certain patterns
+allowed-duplicate-crates = []
+
+# Type complexity threshold
+type-complexity-threshold = 250
+
+# Too many arguments threshold
+too-many-arguments-threshold = 7
+
+# Struct/enum variant threshold
+enum-variant-size-threshold = 200

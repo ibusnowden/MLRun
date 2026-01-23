@@ -1327,6 +1327,7 @@ dependencies = [
  "chrono",
  "clickhouse",
  "config",
+ "http-body-util",
  "opentelemetry",
  "opentelemetry-otlp",
  "serde",

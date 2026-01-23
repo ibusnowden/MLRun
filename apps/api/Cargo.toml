@@ -45,5 +45,11 @@ config.workspace = true
 chrono.workspace = true
 uuid.workspace = true
 
+[dev-dependencies]
+axum = { workspace = true }
+http-body-util = "0.1"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tower = { workspace = true, features = ["util"] }
+
 [lints]
 workspace = true
