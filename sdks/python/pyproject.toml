@@ -5,6 +5,7 @@ description = "MLRun Python SDK - async, non-blocking ML experiment tracking"
 requires-python = ">=3.10"
 readme = "README.md"
 license = { text = "MIT" }
+authors = [{ name = "MLRun Team" }]
 keywords = ["ml", "machine-learning", "experiment-tracking", "mlops"]
 classifiers = [
     "Development Status :: 3 - Alpha",

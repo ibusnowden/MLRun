@@ -1,84 +1,97 @@
-# syntax=docker/dockerfile:1
+# =============================================================================
+# MLRun Rust Services - Multi-stage Dockerfile
+# Supports building: api, ingest, processor
+# =============================================================================
 
-# ============================================
-# Build stage
-# ============================================
-FROM rust:1.85-alpine AS builder
+# -----------------------------------------------------------------------------
+# Stage 1: Build environment
+# -----------------------------------------------------------------------------
+FROM rust:1.85-slim-bookworm AS builder
 
-RUN apk add --no-cache musl-dev protobuf-dev
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy workspace files
+# Copy workspace files for dependency caching
 COPY Cargo.toml Cargo.lock ./
 COPY apps/api/Cargo.toml apps/api/Cargo.toml
+COPY crates/proto/Cargo.toml crates/proto/Cargo.toml
+COPY crates/proto/build.rs crates/proto/build.rs
 COPY services/ingest/Cargo.toml services/ingest/Cargo.toml
 COPY services/processor/Cargo.toml services/processor/Cargo.toml
+COPY proto proto
 
 # Create dummy source files for dependency caching
-RUN mkdir -p apps/api/src services/ingest/src services/processor/src && \
+RUN mkdir -p apps/api/src crates/proto/src services/ingest/src services/processor/src && \
     echo "fn main() {}" > apps/api/src/main.rs && \
+    echo "pub fn dummy() {}" > crates/proto/src/lib.rs && \
     echo "fn main() {}" > services/ingest/src/main.rs && \
     echo "fn main() {}" > services/processor/src/main.rs
 
-# Build dependencies only
-RUN cargo build --release --workspace
-
-# Remove dummy sources
-RUN rm -rf apps/api/src services/ingest/src services/processor/src
+# Build dependencies only (cached layer)
+RUN cargo build --release --workspace && \
+    rm -rf apps/api/src crates/proto/src services/ingest/src services/processor/src
 
 # Copy actual source code
 COPY apps/api/src apps/api/src
+COPY crates/proto/src crates/proto/src
 COPY services/ingest/src services/ingest/src
 COPY services/processor/src services/processor/src
 
-# Touch to invalidate cache for source files
+# Touch files to invalidate cache for source changes
 RUN touch apps/api/src/main.rs services/ingest/src/main.rs services/processor/src/main.rs
 
 # Build all binaries
 RUN cargo build --release --workspace
 
-# ============================================
-# Runtime base
-# ============================================
-FROM alpine:3.21 AS runtime-base
+# -----------------------------------------------------------------------------
+# Stage 2: API service runtime
+# -----------------------------------------------------------------------------
+FROM debian:bookworm-slim AS api
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN addgroup -g 1000 track && \
-    adduser -u 1000 -G track -s /bin/sh -D track
+COPY --from=builder /app/target/release/mlrun-api /usr/local/bin/
 
-# ============================================
-# API service
-# ============================================
-FROM runtime-base AS api
-
-COPY --from=builder /app/target/release/track-api /usr/local/bin/track-api
-
-USER track
 EXPOSE 3001
+ENV RUST_LOG=info
 
-CMD ["track-api"]
+CMD ["mlrun-api"]
 
-# ============================================
-# Ingest service
-# ============================================
-FROM runtime-base AS ingest
+# -----------------------------------------------------------------------------
+# Stage 3: Ingest service runtime
+# -----------------------------------------------------------------------------
+FROM debian:bookworm-slim AS ingest
 
-COPY --from=builder /app/target/release/track-ingest /usr/local/bin/track-ingest
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-USER track
+COPY --from=builder /app/target/release/mlrun-ingest /usr/local/bin/
+
 EXPOSE 3002 50051
+ENV RUST_LOG=info
 
-CMD ["track-ingest"]
+CMD ["mlrun-ingest"]
 
-# ============================================
-# Processor service
-# ============================================
-FROM runtime-base AS processor
+# -----------------------------------------------------------------------------
+# Stage 4: Processor service runtime
+# -----------------------------------------------------------------------------
+FROM debian:bookworm-slim AS processor
 
-COPY --from=builder /app/target/release/track-processor /usr/local/bin/track-processor
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-USER track
+COPY --from=builder /app/target/release/mlrun-processor /usr/local/bin/
 
-CMD ["track-processor"]
+ENV RUST_LOG=info
+
+CMD ["mlrun-processor"]
