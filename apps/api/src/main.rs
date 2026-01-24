@@ -236,6 +236,132 @@ async fn http_finish_run(
 }
 
 // =============================================================================
+// Query API Handlers
+// =============================================================================
+
+/// Query parameters for listing runs.
+#[derive(Debug, Default, Deserialize)]
+struct ListRunsQuery {
+    /// Filter by project ID
+    project: Option<String>,
+    /// Filter by run status
+    status: Option<String>,
+    /// Maximum number of runs to return
+    limit: Option<usize>,
+    /// Number of runs to skip
+    offset: Option<usize>,
+}
+
+/// A run in the response.
+#[derive(Debug, Serialize)]
+struct RunResponse {
+    run_id: String,
+    project_id: String,
+    name: Option<String>,
+    status: String,
+    metrics_count: u64,
+    params_count: u64,
+    tags: std::collections::HashMap<String, String>,
+    created_at: String,
+    updated_at: String,
+    duration_seconds: Option<f64>,
+}
+
+/// Response for listing runs.
+#[derive(Debug, Serialize)]
+struct ListRunsResponse {
+    runs: Vec<RunResponse>,
+    total: usize,
+    limit: usize,
+    offset: usize,
+}
+
+/// List runs with optional filtering.
+async fn http_list_runs(
+    State(state): State<AppState>,
+    axum::extract::Query(query): axum::extract::Query<ListRunsQuery>,
+) -> Result<Json<ListRunsResponse>, (StatusCode, String)> {
+    let runs = state.store.runs.read().await;
+
+    let limit = query.limit.unwrap_or(100).min(1000);
+    let offset = query.offset.unwrap_or(0);
+
+    // Filter runs
+    let mut filtered_runs: Vec<_> = runs
+        .values()
+        .filter(|run| {
+            // Filter by project
+            if let Some(ref project) = query.project {
+                if &run.project_id != project {
+                    return false;
+                }
+            }
+
+            // Filter by status
+            if let Some(ref status) = query.status {
+                let run_status = match run.status {
+                    mlrun_proto::mlrun::v1::RunStatus::Running => "running",
+                    mlrun_proto::mlrun::v1::RunStatus::Finished => "finished",
+                    mlrun_proto::mlrun::v1::RunStatus::Failed => "failed",
+                    mlrun_proto::mlrun::v1::RunStatus::Killed => "killed",
+                    _ => "pending",
+                };
+                if run_status != status {
+                    return false;
+                }
+            }
+
+            true
+        })
+        .collect();
+
+    // Sort by created_at descending (newest first)
+    filtered_runs.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+
+    let total = filtered_runs.len();
+
+    // Apply pagination
+    let page_runs: Vec<_> = filtered_runs
+        .into_iter()
+        .skip(offset)
+        .take(limit)
+        .map(|run| {
+            let duration = run
+                .updated_at
+                .duration_since(run.created_at)
+                .ok()
+                .map(|d| d.as_secs_f64());
+
+            RunResponse {
+                run_id: run.run_id.clone(),
+                project_id: run.project_id.clone(),
+                name: run.name.clone(),
+                status: match run.status {
+                    mlrun_proto::mlrun::v1::RunStatus::Running => "running".to_string(),
+                    mlrun_proto::mlrun::v1::RunStatus::Finished => "finished".to_string(),
+                    mlrun_proto::mlrun::v1::RunStatus::Failed => "failed".to_string(),
+                    mlrun_proto::mlrun::v1::RunStatus::Killed => "killed".to_string(),
+                    _ => "pending".to_string(),
+                },
+                metrics_count: run.metrics_count,
+                params_count: run.params_count,
+                tags: run.tags.clone(),
+                created_at: format!("{:?}", run.created_at),
+                updated_at: format!("{:?}", run.updated_at),
+                duration_seconds: duration,
+            }
+        })
+        .collect();
+
+    Ok(Json(ListRunsResponse {
+        runs: page_runs,
+        total,
+        limit,
+        offset,
+    }))
+}
+
+// =============================================================================
 // Server Setup
 // =============================================================================
 
@@ -244,10 +370,12 @@ fn build_http_router(state: AppState) -> Router {
         // Health and info
         .route("/", get(root))
         .route("/health", get(health))
-        // SDK HTTP transport endpoints
+        // SDK HTTP transport endpoints (ingestion)
         .route("/api/v1/runs", post(http_init_run))
         .route("/api/v1/ingest/batch", post(http_ingest_batch))
         .route("/api/v1/runs/{run_id}/finish", post(http_finish_run))
+        // Query API endpoints
+        .route("/api/v1/runs", get(http_list_runs))
         .with_state(state)
 }
 
