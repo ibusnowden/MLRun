@@ -218,6 +218,10 @@ open http://localhost:9002
 ### Phase 4: Enterprise (Q4+)
 - [ ] RBAC, audit logs, federation, multi-region
 
+## Contributors
+
+- Codex
+
 ## Benchmarks
 
 MLRun targets measurable performance:
