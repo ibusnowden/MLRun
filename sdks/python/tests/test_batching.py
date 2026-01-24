@@ -260,10 +260,34 @@ class TestFlushMetrics:
         """Test that different triggers are tracked."""
         metrics = FlushMetrics()
 
-        metrics.record_flush(events=10, bytes_est=100, coalesced=0, duration_ms=10, trigger="size")
-        metrics.record_flush(events=10, bytes_est=100, coalesced=0, duration_ms=10, trigger="bytes")
-        metrics.record_flush(events=10, bytes_est=100, coalesced=0, duration_ms=10, trigger="time")
-        metrics.record_flush(events=10, bytes_est=100, coalesced=0, duration_ms=10, trigger="manual")
+        metrics.record_flush(
+            events=10,
+            bytes_est=100,
+            coalesced=0,
+            duration_ms=10,
+            trigger="size",
+        )
+        metrics.record_flush(
+            events=10,
+            bytes_est=100,
+            coalesced=0,
+            duration_ms=10,
+            trigger="bytes",
+        )
+        metrics.record_flush(
+            events=10,
+            bytes_est=100,
+            coalesced=0,
+            duration_ms=10,
+            trigger="time",
+        )
+        metrics.record_flush(
+            events=10,
+            bytes_est=100,
+            coalesced=0,
+            duration_ms=10,
+            trigger="manual",
+        )
 
         assert metrics.size_triggered == 1
         assert metrics.bytes_triggered == 1
@@ -274,7 +298,13 @@ class TestFlushMetrics:
     def test_to_dict(self) -> None:
         """Test conversion to dictionary."""
         metrics = FlushMetrics()
-        metrics.record_flush(events=50, bytes_est=2500, coalesced=5, duration_ms=25.0, trigger="size")
+        metrics.record_flush(
+            events=50,
+            bytes_est=2500,
+            coalesced=5,
+            duration_ms=25.0,
+            trigger="size",
+        )
 
         d = metrics.to_dict()
 

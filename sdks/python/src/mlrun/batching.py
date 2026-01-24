@@ -8,7 +8,6 @@ This module provides intelligent batching with:
 
 from __future__ import annotations
 
-import sys
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -194,9 +193,7 @@ class AdaptiveBatcher:
             return True
         if self._stats.estimated_bytes >= self._config.max_bytes:
             return True
-        if self._stats.age_ms >= self._config.max_age_ms:
-            return True
-        return False
+        return self._stats.age_ms >= self._config.max_age_ms
 
     def flush(self) -> tuple[list[Event], BatchStats]:
         """Flush the batch and return events with stats.

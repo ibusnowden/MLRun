@@ -53,6 +53,7 @@ class Config:
     @classmethod
     def from_env(cls) -> Config:
         """Load configuration from environment variables."""
+        truthy = ("true", "1", "yes")
         return cls(
             server_url=os.getenv("MLRUN_SERVER_URL", "http://localhost:3001"),
             api_key=os.getenv("MLRUN_API_KEY"),
@@ -60,16 +61,18 @@ class Config:
             batch_max_bytes=int(os.getenv("MLRUN_BATCH_MAX_BYTES", "1000000")),
             batch_timeout_ms=int(os.getenv("MLRUN_BATCH_TIMEOUT_MS", "1000")),
             queue_size=int(os.getenv("MLRUN_QUEUE_SIZE", "10000")),
-            coalesce_metrics=os.getenv("MLRUN_COALESCE_METRICS", "true").lower() in ("true", "1", "yes"),
-            dedupe_params=os.getenv("MLRUN_DEDUPE_PARAMS", "true").lower() in ("true", "1", "yes"),
-            dedupe_tags=os.getenv("MLRUN_DEDUPE_TAGS", "true").lower() in ("true", "1", "yes"),
-            compression_enabled=os.getenv("MLRUN_COMPRESSION", "true").lower() in ("true", "1", "yes"),
+            coalesce_metrics=os.getenv("MLRUN_COALESCE_METRICS", "true").lower()
+            in truthy,
+            dedupe_params=os.getenv("MLRUN_DEDUPE_PARAMS", "true").lower() in truthy,
+            dedupe_tags=os.getenv("MLRUN_DEDUPE_TAGS", "true").lower() in truthy,
+            compression_enabled=os.getenv("MLRUN_COMPRESSION", "true").lower()
+            in truthy,
             compression_level=int(os.getenv("MLRUN_COMPRESSION_LEVEL", "6")),
             compression_min_bytes=int(os.getenv("MLRUN_COMPRESSION_MIN_BYTES", "1000")),
             max_retries=int(os.getenv("MLRUN_MAX_RETRIES", "3")),
             retry_delay_ms=int(os.getenv("MLRUN_RETRY_DELAY_MS", "1000")),
-            offline_mode=os.getenv("MLRUN_OFFLINE", "").lower() in ("true", "1", "yes"),
-            debug=os.getenv("MLRUN_DEBUG", "").lower() in ("true", "1", "yes"),
+            offline_mode=os.getenv("MLRUN_OFFLINE", "").lower() in truthy,
+            debug=os.getenv("MLRUN_DEBUG", "").lower() in truthy,
         )
 
 
