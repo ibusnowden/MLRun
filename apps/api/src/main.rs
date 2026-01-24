@@ -361,6 +361,72 @@ async fn http_list_runs(
     }))
 }
 
+/// Detailed run response including metrics summary.
+#[derive(Debug, Serialize)]
+struct RunDetailResponse {
+    run_id: String,
+    project_id: String,
+    name: Option<String>,
+    status: String,
+    metrics_count: u64,
+    params_count: u64,
+    tags: std::collections::HashMap<String, String>,
+    created_at: String,
+    updated_at: String,
+    duration_seconds: Option<f64>,
+    // Additional detail fields
+    metrics_summary: Vec<MetricSummaryResponse>,
+}
+
+#[derive(Debug, Serialize)]
+struct MetricSummaryResponse {
+    name: String,
+    last_value: f64,
+    last_step: i64,
+}
+
+/// Get run detail by ID.
+async fn http_get_run(
+    State(state): State<AppState>,
+    axum::extract::Path(run_id): axum::extract::Path<String>,
+) -> Result<Json<RunDetailResponse>, (StatusCode, String)> {
+    let runs = state.store.runs.read().await;
+
+    let run = runs.get(&run_id).ok_or_else(|| {
+        (StatusCode::NOT_FOUND, format!("Run not found: {}", run_id))
+    })?;
+
+    let duration = run
+        .updated_at
+        .duration_since(run.created_at)
+        .ok()
+        .map(|d| d.as_secs_f64());
+
+    // TODO: Get actual metrics summary from ClickHouse
+    // For now, return empty list (metrics are tracked in-memory as count only)
+    let metrics_summary = vec![];
+
+    Ok(Json(RunDetailResponse {
+        run_id: run.run_id.clone(),
+        project_id: run.project_id.clone(),
+        name: run.name.clone(),
+        status: match run.status {
+            mlrun_proto::mlrun::v1::RunStatus::Running => "running".to_string(),
+            mlrun_proto::mlrun::v1::RunStatus::Finished => "finished".to_string(),
+            mlrun_proto::mlrun::v1::RunStatus::Failed => "failed".to_string(),
+            mlrun_proto::mlrun::v1::RunStatus::Killed => "killed".to_string(),
+            _ => "pending".to_string(),
+        },
+        metrics_count: run.metrics_count,
+        params_count: run.params_count,
+        tags: run.tags.clone(),
+        created_at: format!("{:?}", run.created_at),
+        updated_at: format!("{:?}", run.updated_at),
+        duration_seconds: duration,
+        metrics_summary,
+    }))
+}
+
 // =============================================================================
 // Server Setup
 // =============================================================================
@@ -376,6 +442,7 @@ fn build_http_router(state: AppState) -> Router {
         .route("/api/v1/runs/{run_id}/finish", post(http_finish_run))
         // Query API endpoints
         .route("/api/v1/runs", get(http_list_runs))
+        .route("/api/v1/runs/{run_id}", get(http_get_run))
         .with_state(state)
 }
 
