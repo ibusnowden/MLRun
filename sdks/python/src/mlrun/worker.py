@@ -98,14 +98,20 @@ class FlushWorker:
                 )
                 self._flush_event.clear()
 
-                # Get a batch of events
-                events = self._queue.get_batch(
-                    max_items=self._config.batch_size,
-                    timeout_ms=100,  # Short timeout when draining
-                )
+                # Drain batches until the queue is empty to avoid idle gaps.
+                while True:
+                    events = self._queue.get_batch(
+                        max_items=self._config.batch_size,
+                        timeout_ms=100,  # Short timeout when draining
+                    )
 
-                if events:
+                    if not events:
+                        break
+
                     self._send_batch(events)
+
+                    if self._queue.is_empty():
+                        break
 
             except Exception as e:
                 logger.exception(f"Error in flush worker: {e}")

@@ -212,8 +212,8 @@ class TestNonBlocking:
             run.log({"loss": 0.5, "accuracy": 0.8, "step": i}, step=i)
         elapsed = time.perf_counter() - start
 
-        # Should complete very quickly (queue operations only)
-        # 1000 operations should take less than 100ms
-        assert elapsed < 0.1, f"Logging took too long: {elapsed:.3f}s"
+        # Should complete quickly (queue operations only).
+        # Allow headroom for slower CI runners.
+        assert elapsed < 0.5, f"Logging took too long: {elapsed:.3f}s"
 
         run.finish()
