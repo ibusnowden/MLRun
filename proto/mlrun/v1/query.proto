@@ -350,6 +350,7 @@ enum AlignmentMode {
   ALIGNMENT_MODE_STEP = 1;           // Align by step number (default)
   ALIGNMENT_MODE_RELATIVE_TIME = 2;  // Align by time since run start
   ALIGNMENT_MODE_ABSOLUTE_TIME = 3;  // Align by wall-clock time
+  // Align by % progress (0-100).
   ALIGNMENT_MODE_PROGRESS = 4;       // Align by % progress (0-100)
 }
 
@@ -392,6 +393,7 @@ message ListArtifactsRequest {
 
   // Pagination
   int32 page_size = 4;
+  // Pagination token for listing next set of artifacts.
   string page_token = 5;
 }
 
@@ -467,6 +469,7 @@ message GetProjectStatsResponse {
 
   // Time range of stats
   google.protobuf.Timestamp stats_since = 7;
+  // Upper bound on statistics collection interval.
   google.protobuf.Timestamp stats_until = 8;
 }
 
@@ -487,6 +490,7 @@ message SearchRunsRequest {
 
   // Pagination
   int32 page_size = 4;
+  // Pagination token for listing next set of runs.
   string page_token = 5;
 }
 

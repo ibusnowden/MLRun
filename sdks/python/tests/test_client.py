@@ -217,3 +217,55 @@ class TestNonBlocking:
         assert elapsed < 0.5, f"Logging took too long: {elapsed:.3f}s"
 
         run.finish()
+
+
+class TestCompression:
+    """Tests for compression configuration."""
+
+    @pytest.mark.unit
+    def test_compression_config_defaults(self) -> None:
+        """Test default compression configuration."""
+        config = Config()
+        assert config.compression_enabled is True
+        assert config.compression_level == 6
+        assert config.compression_min_bytes == 1000
+
+    @pytest.mark.unit
+    def test_compression_config_from_env(self) -> None:
+        """Test compression config from environment."""
+        with patch.dict(
+            "os.environ",
+            {
+                "MLRUN_COMPRESSION": "false",
+                "MLRUN_COMPRESSION_LEVEL": "9",
+                "MLRUN_COMPRESSION_MIN_BYTES": "5000",
+            },
+        ):
+            config = Config.from_env()
+            assert config.compression_enabled is False
+            assert config.compression_level == 9
+            assert config.compression_min_bytes == 5000
+
+    @pytest.mark.unit
+    def test_coalescing_config_defaults(self) -> None:
+        """Test default coalescing configuration."""
+        config = Config()
+        assert config.coalesce_metrics is True
+        assert config.dedupe_params is True
+        assert config.dedupe_tags is True
+
+    @pytest.mark.unit
+    def test_coalescing_config_from_env(self) -> None:
+        """Test coalescing config from environment."""
+        with patch.dict(
+            "os.environ",
+            {
+                "MLRUN_COALESCE_METRICS": "false",
+                "MLRUN_DEDUPE_PARAMS": "0",
+                "MLRUN_DEDUPE_TAGS": "no",
+            },
+        ):
+            config = Config.from_env()
+            assert config.coalesce_metrics is False
+            assert config.dedupe_params is False
+            assert config.dedupe_tags is False

@@ -85,11 +85,18 @@ class HttpTransport(Transport):
         except Exception:
             return {"status": "ok"}
 
-    def send_batch(self, batch: dict[str, Any]) -> dict[str, Any]:
+    def send_batch(
+        self,
+        batch: dict[str, Any],
+        compressed: bool = False,
+        raw_payload: bytes | None = None,
+    ) -> dict[str, Any]:
         """Send a batch of events to the server.
 
         Args:
             batch: The batch payload containing events
+            compressed: Whether raw_payload is gzip compressed
+            raw_payload: Pre-serialized/compressed payload (if None, serialize batch as JSON)
 
         Returns:
             Server response
@@ -99,7 +106,22 @@ class HttpTransport(Transport):
         """
         try:
             client = self._get_client()
-            response = client.post("/api/v1/ingest/batch", json=batch)
+
+            if raw_payload is not None and compressed:
+                # Send pre-compressed payload with appropriate headers
+                headers = {
+                    "Content-Type": "application/json",
+                    "Content-Encoding": "gzip",
+                }
+                response = client.post(
+                    "/api/v1/ingest/batch",
+                    content=raw_payload,
+                    headers=headers,
+                )
+            else:
+                # Send as regular JSON
+                response = client.post("/api/v1/ingest/batch", json=batch)
+
             return self._handle_response(response)
         except httpx.ConnectError as e:
             raise TransportError(

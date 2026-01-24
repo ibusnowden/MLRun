@@ -24,11 +24,18 @@ class Transport(ABC):
     """Abstract base class for transport implementations."""
 
     @abstractmethod
-    def send_batch(self, batch: dict[str, Any]) -> dict[str, Any]:
+    def send_batch(
+        self,
+        batch: dict[str, Any],
+        compressed: bool = False,
+        raw_payload: bytes | None = None,
+    ) -> dict[str, Any]:
         """Send a batch of events to the server.
 
         Args:
             batch: The batch payload to send
+            compressed: Whether the raw_payload is gzip compressed
+            raw_payload: Pre-serialized/compressed payload (if None, serialize batch)
 
         Returns:
             Server response as a dictionary
