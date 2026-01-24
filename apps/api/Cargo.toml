@@ -45,6 +45,7 @@ config.workspace = true
 
 # Utils
 chrono.workspace = true
+time.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]

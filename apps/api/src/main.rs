@@ -7,6 +7,7 @@
 //! Architecture: Single binary serving both protocols on different ports.
 
 mod services;
+mod storage;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
