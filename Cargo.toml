@@ -57,6 +57,7 @@ chrono = { version = "0.4", features = ["serde"] }
 # Utils
 uuid = { version = "1.11", features = ["v7", "serde"] }
 bytes = "1.9"
+futures = "0.3"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

@@ -165,7 +165,7 @@ docker compose logs -f
 ```bash
 # Clone the repo
 git clone https://github.com/your-org/MLRun.git
-cd trackstack
+cd mlrun
 
 # Python SDK development
 uv sync --all-packages
