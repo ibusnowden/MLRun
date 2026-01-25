@@ -27,8 +27,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use mlrun_proto::mlrun::v1::ingest_service_server::IngestServiceServer;
 use services::{
-    compute_payload_hash, ingest::InMemoryStore, IdempotencyResult, IdempotencyStore,
-    IngestServiceImpl, MetricPayload, ParamPayload, TagPayload,
+    compute_payload_hash, ingest::InMemoryStore, CardinalityTracker, IdempotencyResult,
+    IdempotencyStore, IngestServiceImpl, MetricPayload, ParamPayload, TagPayload,
 };
 use auth::{ApiKeyStore, auth_middleware};
 
@@ -38,6 +38,7 @@ pub struct AppState {
     store: Arc<InMemoryStore>,
     key_store: Arc<ApiKeyStore>,
     idempotency_store: Arc<IdempotencyStore>,
+    cardinality_tracker: Arc<CardinalityTracker>,
 }
 
 // =============================================================================
@@ -262,6 +263,28 @@ async fn http_ingest_batch(
         }
     }
 
+    // Validate cardinality limits
+    let tags_for_validation: Vec<(String, String)> = req.tags.iter()
+        .map(|t| (t.key.clone(), t.value.clone()))
+        .collect();
+    let metric_names: Vec<String> = req.metrics.iter()
+        .map(|m| m.name.clone())
+        .collect();
+
+    let validation = state.cardinality_tracker.validate_batch(
+        &project_id,
+        &req.run_id,
+        &tags_for_validation,
+        &metric_names,
+    ).await;
+
+    // Add cardinality warnings
+    warnings.extend(validation.warnings.clone());
+
+    // Filter metrics and tags based on validation
+    let accepted_tags = &validation.accepted_tags;
+    let accepted_metrics: std::collections::HashSet<_> = validation.accepted_metrics.iter().collect();
+
     // Now process the batch
     let mut runs = state.store.runs.write().await;
 
@@ -279,25 +302,33 @@ async fn http_ingest_batch(
         ));
     }
 
-    run.metrics_count += metric_count as u64;
+    // Count only accepted items
+    let accepted_metric_count = req.metrics.iter()
+        .filter(|m| accepted_metrics.contains(&m.name))
+        .count();
+    let accepted_tag_count = accepted_tags.len();
+
+    run.metrics_count += accepted_metric_count as u64;
     run.params_count += param_count as u64;
 
-    // Update tags
-    for tag in &req.tags {
-        run.tags.insert(tag.key.clone(), tag.value.clone());
+    // Update tags (only accepted ones)
+    for (key, value) in accepted_tags {
+        run.tags.insert(key.clone(), value.clone());
     }
 
     run.updated_at = std::time::SystemTime::now();
 
-    let total = metric_count + param_count + tag_count;
+    let total = accepted_metric_count + param_count + accepted_tag_count;
+    let dropped = validation.dropped_tags.len() + validation.dropped_metrics.len();
 
     tracing::debug!(
         run_id = %req.run_id,
         batch_id = %batch_id,
         seq = seq,
-        metrics = metric_count,
+        metrics = accepted_metric_count,
         params = param_count,
-        tags = tag_count,
+        tags = accepted_tag_count,
+        dropped = dropped,
         "HTTP: Ingested batch"
     );
 
@@ -588,12 +619,22 @@ async fn main() {
     // Initialize idempotency store
     let idempotency_store = Arc::new(IdempotencyStore::new());
 
+    // Initialize cardinality tracker
+    let cardinality_tracker = Arc::new(CardinalityTracker::from_env());
+    info!(
+        "Cardinality limits: {} tag keys/run, {} metric names/run, {} tags/project",
+        cardinality_tracker.config().max_tag_keys_per_run,
+        cardinality_tracker.config().max_metric_names_per_run,
+        cardinality_tracker.config().max_tags_per_project
+    );
+
     // Create shared state
     let store = Arc::new(InMemoryStore::new());
     let app_state = AppState {
         store: store.clone(),
         key_store: key_store.clone(),
         idempotency_store,
+        cardinality_tracker,
     };
 
     // HTTP server address
@@ -651,7 +692,8 @@ mod tests {
         // Use dev mode for tests (auth disabled)
         let key_store = Arc::new(ApiKeyStore::new_dev_mode());
         let idempotency_store = Arc::new(IdempotencyStore::new());
-        let state = AppState { store, key_store, idempotency_store };
+        let cardinality_tracker = Arc::new(CardinalityTracker::default());
+        let state = AppState { store, key_store, idempotency_store, cardinality_tracker };
         build_http_router(state)
     }
 
