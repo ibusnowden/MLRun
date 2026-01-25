@@ -644,6 +644,130 @@ async fn http_get_metrics(
 }
 
 // =============================================================================
+// Compare Runs API
+// =============================================================================
+
+/// Request body for comparing runs.
+#[derive(Debug, Deserialize)]
+struct CompareRunsRequest {
+    /// Run IDs to compare
+    run_ids: Vec<String>,
+    /// Metric names to compare (empty = all common metrics)
+    #[serde(default)]
+    metric_names: Vec<String>,
+    /// Maximum points per metric per run
+    #[serde(default = "default_max_points")]
+    max_points: usize,
+    /// Alignment mode: "step" (default) or "time"
+    #[serde(default = "default_alignment")]
+    alignment: String,
+}
+
+fn default_alignment() -> String {
+    "step".to_string()
+}
+
+/// Metrics data for a single run in comparison.
+#[derive(Debug, Serialize)]
+struct RunCompareData {
+    run_id: String,
+    run_name: Option<String>,
+    status: String,
+    series: Vec<services::MetricSeries>,
+}
+
+/// Response for comparing runs.
+#[derive(Debug, Serialize)]
+struct CompareRunsResponse {
+    /// Data for each run
+    runs: Vec<RunCompareData>,
+    /// Metric names common to all runs
+    common_metrics: Vec<String>,
+    /// Alignment mode used
+    alignment: String,
+}
+
+/// Compare metrics across multiple runs.
+async fn http_compare_runs(
+    State(state): State<AppState>,
+    Json(req): Json<CompareRunsRequest>,
+) -> Result<Json<CompareRunsResponse>, (StatusCode, String)> {
+    if req.run_ids.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "run_ids cannot be empty".to_string()));
+    }
+
+    if req.run_ids.len() > 100 {
+        return Err((StatusCode::BAD_REQUEST, "Maximum 100 runs can be compared".to_string()));
+    }
+
+    let runs_store = state.store.runs.read().await;
+    let metrics_store = state.store.metrics.read().await;
+
+    // Collect data for each run
+    let mut runs_data = Vec::new();
+    let mut all_metric_sets: Vec<std::collections::HashSet<String>> = Vec::new();
+
+    for run_id in &req.run_ids {
+        // Get run info
+        let run = runs_store.get(run_id).ok_or_else(|| {
+            (StatusCode::NOT_FOUND, format!("Run not found: {}", run_id))
+        })?;
+
+        // Get run metrics
+        let run_metrics = metrics_store.get(run_id);
+        let (series, available) = match run_metrics {
+            Some(rm) => {
+                let names = if req.metric_names.is_empty() {
+                    vec![]
+                } else {
+                    req.metric_names.clone()
+                };
+                let series = rm.query(&names, req.max_points, None, None);
+                let available = rm.metric_names();
+                (series, available)
+            }
+            None => (vec![], vec![]),
+        };
+
+        // Track metric names for finding common ones
+        let metric_set: std::collections::HashSet<String> = available.into_iter().collect();
+        all_metric_sets.push(metric_set);
+
+        runs_data.push(RunCompareData {
+            run_id: run_id.clone(),
+            run_name: run.name.clone(),
+            status: match run.status {
+                mlrun_proto::mlrun::v1::RunStatus::Running => "running".to_string(),
+                mlrun_proto::mlrun::v1::RunStatus::Finished => "finished".to_string(),
+                mlrun_proto::mlrun::v1::RunStatus::Failed => "failed".to_string(),
+                mlrun_proto::mlrun::v1::RunStatus::Killed => "killed".to_string(),
+                _ => "pending".to_string(),
+            },
+            series,
+        });
+    }
+
+    // Find common metrics (intersection of all sets)
+    let common_metrics: Vec<String> = if all_metric_sets.is_empty() {
+        vec![]
+    } else {
+        let mut common = all_metric_sets[0].clone();
+        for set in all_metric_sets.iter().skip(1) {
+            common = common.intersection(set).cloned().collect();
+        }
+        let mut common_vec: Vec<_> = common.into_iter().collect();
+        common_vec.sort();
+        common_vec
+    };
+
+    Ok(Json(CompareRunsResponse {
+        runs: runs_data,
+        common_metrics,
+        alignment: req.alignment,
+    }))
+}
+
+// =============================================================================
 // Server Setup
 // =============================================================================
 
@@ -658,6 +782,7 @@ fn build_http_router(state: AppState) -> Router {
         .route("/api/v1/runs", get(http_list_runs))
         .route("/api/v1/runs/{run_id}", get(http_get_run))
         .route("/api/v1/runs/{run_id}/metrics", get(http_get_metrics))
+        .route("/api/v1/runs/compare", post(http_compare_runs))
         .layer(middleware::from_fn_with_state(
             state.key_store.clone(),
             auth_middleware,
