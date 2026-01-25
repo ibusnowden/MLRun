@@ -580,6 +580,70 @@ async fn http_get_run(
 }
 
 // =============================================================================
+// Metrics Query API
+// =============================================================================
+
+/// Query parameters for metrics endpoint.
+#[derive(Debug, Deserialize)]
+struct MetricsQuery {
+    /// Comma-separated metric names (empty = all)
+    #[serde(default)]
+    names: String,
+    /// Maximum points per metric (triggers downsampling)
+    #[serde(default = "default_max_points")]
+    max_points: usize,
+    /// Start step (inclusive)
+    start_step: Option<i64>,
+    /// End step (inclusive)
+    end_step: Option<i64>,
+}
+
+fn default_max_points() -> usize {
+    1000
+}
+
+/// Get metrics for a run with optional downsampling.
+async fn http_get_metrics(
+    State(state): State<AppState>,
+    axum::extract::Path(run_id): axum::extract::Path<String>,
+    axum::extract::Query(query): axum::extract::Query<MetricsQuery>,
+) -> Result<Json<services::MetricsQueryResponse>, (StatusCode, String)> {
+    // Verify run exists
+    {
+        let runs = state.store.runs.read().await;
+        if !runs.contains_key(&run_id) {
+            return Err((StatusCode::NOT_FOUND, format!("Run not found: {}", run_id)));
+        }
+    }
+
+    // Parse metric names
+    let names: Vec<String> = if query.names.is_empty() {
+        vec![]
+    } else {
+        query.names.split(',').map(|s| s.trim().to_string()).collect()
+    };
+
+    // Query metrics
+    let metrics_store = state.store.metrics.read().await;
+    let run_metrics = metrics_store.get(&run_id);
+
+    let (series, available_metrics) = match run_metrics {
+        Some(rm) => {
+            let series = rm.query(&names, query.max_points, query.start_step, query.end_step);
+            let available = rm.metric_names();
+            (series, available)
+        }
+        None => (vec![], vec![]),
+    };
+
+    Ok(Json(services::MetricsQueryResponse {
+        run_id,
+        series,
+        available_metrics,
+    }))
+}
+
+// =============================================================================
 // Server Setup
 // =============================================================================
 
@@ -593,6 +657,7 @@ fn build_http_router(state: AppState) -> Router {
         // Query API endpoints
         .route("/api/v1/runs", get(http_list_runs))
         .route("/api/v1/runs/{run_id}", get(http_get_run))
+        .route("/api/v1/runs/{run_id}/metrics", get(http_get_metrics))
         .layer(middleware::from_fn_with_state(
             state.key_store.clone(),
             auth_middleware,

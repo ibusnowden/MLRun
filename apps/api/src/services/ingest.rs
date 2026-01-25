@@ -46,6 +46,8 @@ pub struct InMemoryStore {
     pub runs: RwLock<HashMap<String, RunState>>,
     /// Track seen batch IDs for idempotency
     pub seen_batches: RwLock<HashMap<String, ()>>,
+    /// Metric data storage per run
+    pub metrics: RwLock<HashMap<String, super::metrics::RunMetrics>>,
 }
 
 impl InMemoryStore {
@@ -201,8 +203,23 @@ impl IngestService for IngestServiceImpl {
             run.updated_at = SystemTime::now();
         }
 
-        // TODO: Write to ClickHouse (STO-001)
-        // For now, just log and acknowledge
+        // Store actual metric points for querying
+        if let Some(batch) = &req.metrics {
+            let mut metrics_store = self.store.metrics.write().await;
+            let run_metrics = metrics_store
+                .entry(run_id.value.clone())
+                .or_insert_with(super::metrics::RunMetrics::new);
+
+            for point in &batch.points {
+                run_metrics.add_point(super::metrics::MetricPoint {
+                    name: point.name.clone(),
+                    step: point.step,
+                    value: point.value,
+                    timestamp: point.timestamp.as_ref().map(|t| t.seconds as f64 + t.nanos as f64 / 1e9),
+                });
+            }
+        }
+
         debug!(
             run_id = %run_id.value,
             batch_id = %req.batch_id,
