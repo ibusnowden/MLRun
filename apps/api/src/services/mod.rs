@@ -5,6 +5,7 @@
 pub mod idempotency;
 pub mod ingest;
 pub mod limits;
+pub mod metrics;
 
 pub use idempotency::{
     compute_payload_hash, IdempotencyResult, IdempotencyStore, MetricPayload,
@@ -12,3 +13,7 @@ pub use idempotency::{
 };
 pub use ingest::IngestServiceImpl;
 pub use limits::{CardinalityTracker, LimitsConfig, SharedCardinalityTracker, ValidationResult};
+pub use metrics::{
+    AggregatedPoint, MetricPoint, MetricSeries, MetricsQueryRequest, MetricsQueryResponse,
+    RunMetrics,
+};
