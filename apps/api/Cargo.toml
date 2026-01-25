@@ -48,6 +48,11 @@ chrono.workspace = true
 time.workspace = true
 uuid.workspace = true
 
+# Auth
+sha2.workspace = true
+hex.workspace = true
+rand.workspace = true
+
 [dev-dependencies]
 axum = { workspace = true }
 http-body-util = "0.1"

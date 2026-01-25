@@ -6,6 +6,7 @@
 //!
 //! Architecture: Single binary serving both protocols on different ports.
 
+mod auth;
 mod services;
 mod storage;
 
@@ -15,6 +16,7 @@ use std::sync::Arc;
 use axum::{
     extract::State,
     http::StatusCode,
+    middleware,
     routing::{get, post},
     Json, Router,
 };
@@ -25,11 +27,13 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use mlrun_proto::mlrun::v1::ingest_service_server::IngestServiceServer;
 use services::{ingest::InMemoryStore, IngestServiceImpl};
+use auth::{ApiKeyStore, auth_middleware};
 
 /// Application state shared across handlers.
 #[derive(Clone)]
 pub struct AppState {
     store: Arc<InMemoryStore>,
+    key_store: Arc<ApiKeyStore>,
 }
 
 // =============================================================================
@@ -432,10 +436,8 @@ async fn http_get_run(
 // =============================================================================
 
 fn build_http_router(state: AppState) -> Router {
-    Router::new()
-        // Health and info
-        .route("/", get(root))
-        .route("/health", get(health))
+    // Routes that require authentication
+    let protected_routes = Router::new()
         // SDK HTTP transport endpoints (ingestion)
         .route("/api/v1/runs", post(http_init_run))
         .route("/api/v1/ingest/batch", post(http_ingest_batch))
@@ -443,6 +445,20 @@ fn build_http_router(state: AppState) -> Router {
         // Query API endpoints
         .route("/api/v1/runs", get(http_list_runs))
         .route("/api/v1/runs/{run_id}", get(http_get_run))
+        .layer(middleware::from_fn_with_state(
+            state.key_store.clone(),
+            auth_middleware,
+        ));
+
+    // Public routes (no auth required)
+    let public_routes = Router::new()
+        .route("/", get(root))
+        .route("/health", get(health));
+
+    // Combine routes
+    Router::new()
+        .merge(public_routes)
+        .merge(protected_routes)
         .with_state(state)
 }
 
@@ -457,10 +473,15 @@ async fn main() {
         )
         .init();
 
+    // Initialize API key store
+    let key_store = Arc::new(ApiKeyStore::new());
+    key_store.init_from_env().await;
+
     // Create shared state
     let store = Arc::new(InMemoryStore::new());
     let app_state = AppState {
         store: store.clone(),
+        key_store: key_store.clone(),
     };
 
     // HTTP server address
@@ -515,7 +536,9 @@ mod tests {
 
     fn test_app() -> Router {
         let store = Arc::new(InMemoryStore::new());
-        let state = AppState { store };
+        // Use dev mode for tests (auth disabled)
+        let key_store = Arc::new(ApiKeyStore::new_dev_mode());
+        let state = AppState { store, key_store };
         build_http_router(state)
     }
 
