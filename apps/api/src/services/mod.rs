@@ -4,9 +4,11 @@
 
 pub mod idempotency;
 pub mod ingest;
+pub mod limits;
 
 pub use idempotency::{
     compute_payload_hash, IdempotencyResult, IdempotencyStore, MetricPayload,
     ParamPayload, SharedIdempotencyStore, TagPayload,
 };
 pub use ingest::IngestServiceImpl;
+pub use limits::{CardinalityTracker, LimitsConfig, SharedCardinalityTracker, ValidationResult};
