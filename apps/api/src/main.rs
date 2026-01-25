@@ -5,8 +5,17 @@
 //! - gRPC API for high-throughput SDK ingestion
 //!
 //! Architecture: Single binary serving both protocols on different ports.
+//!
+//! # Ingest Modes
+//!
+//! - **Direct mode** (alpha): Writes directly to ClickHouse/Postgres without queues.
+//!   Simpler setup, suitable for development and small deployments.
+//!
+//! - **Queued mode** (future): Writes through Redis/Kafka for better throughput
+//!   and horizontal scaling.
 
 mod auth;
+mod config;
 mod services;
 mod storage;
 
@@ -603,14 +612,20 @@ fn build_http_router(state: AppState) -> Router {
 
 #[tokio::main]
 async fn main() {
+    // Load configuration from environment
+    let server_config = config::ServerConfig::from_env();
+
     // Initialize tracing
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "mlrun_api=debug,tower_http=debug".into()),
+                .unwrap_or_else(|_| server_config.log_level.clone().into()),
         )
         .init();
+
+    // Log startup configuration
+    server_config.log_startup();
 
     // Initialize API key store
     let key_store = Arc::new(ApiKeyStore::new());
@@ -637,11 +652,9 @@ async fn main() {
         cardinality_tracker,
     };
 
-    // HTTP server address
-    let http_addr = SocketAddr::from(([0, 0, 0, 0], 3001));
-
-    // gRPC server address
-    let grpc_addr = SocketAddr::from(([0, 0, 0, 0], 50051));
+    // Server addresses from config
+    let http_addr = server_config.http_addr;
+    let grpc_addr = server_config.grpc_addr;
 
     // Build HTTP router
     let http_app = build_http_router(app_state);
