@@ -60,6 +60,11 @@ uuid = { version = "1.11", features = ["v7", "serde"] }
 bytes = "1.9"
 futures = "0.3"
 
+# Crypto / Auth
+sha2 = "0.10"
+hex = "0.4"
+rand = "0.9"
+
 [workspace.lints.rust]
 unsafe_code = "forbid"
 
