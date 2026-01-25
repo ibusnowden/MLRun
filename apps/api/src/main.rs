@@ -26,7 +26,10 @@ use tracing::{info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use mlrun_proto::mlrun::v1::ingest_service_server::IngestServiceServer;
-use services::{ingest::InMemoryStore, IngestServiceImpl};
+use services::{
+    compute_payload_hash, ingest::InMemoryStore, IdempotencyResult, IdempotencyStore,
+    IngestServiceImpl, MetricPayload, ParamPayload, TagPayload,
+};
 use auth::{ApiKeyStore, auth_middleware};
 
 /// Application state shared across handlers.
@@ -34,6 +37,7 @@ use auth::{ApiKeyStore, auth_middleware};
 pub struct AppState {
     store: Arc<InMemoryStore>,
     key_store: Arc<ApiKeyStore>,
+    idempotency_store: Arc<IdempotencyStore>,
 }
 
 // =============================================================================
@@ -109,10 +113,16 @@ async fn http_init_run(
 #[derive(Debug, Deserialize)]
 struct IngestBatchHttpRequest {
     run_id: String,
+    /// SDK-provided batch identifier for idempotency
+    batch_id: Option<String>,
+    /// Sequence number for ordering (optional)
+    seq: Option<i64>,
     metrics: Vec<MetricData>,
     params: Vec<ParamData>,
     tags: Vec<TagData>,
+    #[allow(dead_code)]
     timestamp: Option<f64>,
+    #[allow(dead_code)]
     stats: Option<BatchStats>,
 }
 
@@ -148,6 +158,11 @@ struct BatchStats {
 struct IngestBatchHttpResponse {
     status: String,
     accepted: i64,
+    /// Whether this was a duplicate batch
+    duplicate: bool,
+    /// Warnings about the batch (e.g., out of order)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    warnings: Vec<String>,
 }
 
 /// Ingest a batch of events via HTTP (for SDK HTTP transport).
@@ -155,6 +170,99 @@ async fn http_ingest_batch(
     State(state): State<AppState>,
     Json(req): Json<IngestBatchHttpRequest>,
 ) -> Result<Json<IngestBatchHttpResponse>, (StatusCode, String)> {
+    // Generate batch_id if not provided
+    let batch_id = req.batch_id.unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
+    let seq = req.seq.unwrap_or(0);
+
+    // Convert request data for hashing
+    let metric_payloads: Vec<MetricPayload> = req.metrics.iter()
+        .map(|m| MetricPayload {
+            name: m.name.clone(),
+            value: m.value,
+            step: m.step,
+        })
+        .collect();
+
+    let param_payloads: Vec<ParamPayload> = req.params.iter()
+        .map(|p| ParamPayload {
+            name: p.name.clone(),
+            value: p.value.clone(),
+        })
+        .collect();
+
+    let tag_payloads: Vec<TagPayload> = req.tags.iter()
+        .map(|t| TagPayload {
+            key: t.key.clone(),
+            value: t.value.clone(),
+        })
+        .collect();
+
+    // Compute payload hash for idempotency
+    let payload_hash = compute_payload_hash(&metric_payloads, &param_payloads, &tag_payloads);
+
+    // Check and record for idempotency
+    let metric_count = req.metrics.len();
+    let param_count = req.params.len();
+    let tag_count = req.tags.len();
+
+    // Get project_id from run (read lock first)
+    let project_id = {
+        let runs = state.store.runs.read().await;
+        let run = runs.get(&req.run_id).ok_or_else(|| {
+            (
+                StatusCode::NOT_FOUND,
+                format!("Run not found: {}", req.run_id),
+            )
+        })?;
+        run.project_id.clone()
+    };
+
+    let idempotency_result = state.idempotency_store.check_and_record(
+        &project_id,
+        &req.run_id,
+        &batch_id,
+        seq,
+        &payload_hash,
+        metric_count as i32,
+        param_count as i32,
+        tag_count as i32,
+    ).await;
+
+    // Handle idempotency results
+    let mut warnings = Vec::new();
+
+    match &idempotency_result {
+        IdempotencyResult::Duplicate => {
+            // Duplicate batch - return success without processing
+            return Ok(Json(IngestBatchHttpResponse {
+                status: "ok".to_string(),
+                accepted: 0,
+                duplicate: true,
+                warnings: vec![],
+            }));
+        }
+        IdempotencyResult::Conflict { expected_hash, actual_hash } => {
+            // Conflicting batch - error
+            return Err((
+                StatusCode::CONFLICT,
+                format!(
+                    "Batch {} conflicts with existing batch (expected hash {}, got {})",
+                    batch_id, expected_hash, actual_hash
+                ),
+            ));
+        }
+        IdempotencyResult::OutOfOrder { expected_seq, actual_seq } => {
+            warnings.push(format!(
+                "Batch received out of order (expected seq >= {}, got {})",
+                expected_seq, actual_seq
+            ));
+        }
+        IdempotencyResult::New => {
+            // New batch - proceed normally
+        }
+    }
+
+    // Now process the batch
     let mut runs = state.store.runs.write().await;
 
     let run = runs.get_mut(&req.run_id).ok_or_else(|| {
@@ -171,10 +279,6 @@ async fn http_ingest_batch(
         ));
     }
 
-    let metric_count = req.metrics.len();
-    let param_count = req.params.len();
-    let tag_count = req.tags.len();
-
     run.metrics_count += metric_count as u64;
     run.params_count += param_count as u64;
 
@@ -189,6 +293,8 @@ async fn http_ingest_batch(
 
     tracing::debug!(
         run_id = %req.run_id,
+        batch_id = %batch_id,
+        seq = seq,
         metrics = metric_count,
         params = param_count,
         tags = tag_count,
@@ -198,6 +304,8 @@ async fn http_ingest_batch(
     Ok(Json(IngestBatchHttpResponse {
         status: "ok".to_string(),
         accepted: total as i64,
+        duplicate: false,
+        warnings,
     }))
 }
 
@@ -477,11 +585,15 @@ async fn main() {
     let key_store = Arc::new(ApiKeyStore::new());
     key_store.init_from_env().await;
 
+    // Initialize idempotency store
+    let idempotency_store = Arc::new(IdempotencyStore::new());
+
     // Create shared state
     let store = Arc::new(InMemoryStore::new());
     let app_state = AppState {
         store: store.clone(),
         key_store: key_store.clone(),
+        idempotency_store,
     };
 
     // HTTP server address
@@ -538,7 +650,8 @@ mod tests {
         let store = Arc::new(InMemoryStore::new());
         // Use dev mode for tests (auth disabled)
         let key_store = Arc::new(ApiKeyStore::new_dev_mode());
-        let state = AppState { store, key_store };
+        let idempotency_store = Arc::new(IdempotencyStore::new());
+        let state = AppState { store, key_store, idempotency_store };
         build_http_router(state)
     }
 
