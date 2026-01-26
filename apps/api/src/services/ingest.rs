@@ -14,16 +14,11 @@ use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
 use mlrun_proto::mlrun::v1::{
+    CreateArtifactUploadRequest, CreateArtifactUploadResponse, FinalizeArtifactUploadRequest,
+    FinalizeArtifactUploadResponse, FinishRunRequest, FinishRunResponse, HeartbeatRequest,
+    HeartbeatResponse, InitRunRequest, InitRunResponse, LogMetricsRequest, LogMetricsResponse,
+    LogParamsRequest, LogParamsResponse, LogTagsRequest, LogTagsResponse, RunId, RunStatus,
     ingest_service_server::IngestService,
-    CreateArtifactUploadRequest, CreateArtifactUploadResponse,
-    FinalizeArtifactUploadRequest, FinalizeArtifactUploadResponse,
-    FinishRunRequest, FinishRunResponse,
-    HeartbeatRequest, HeartbeatResponse,
-    InitRunRequest, InitRunResponse,
-    LogMetricsRequest, LogMetricsResponse,
-    LogParamsRequest, LogParamsResponse,
-    LogTagsRequest, LogTagsResponse,
-    RunId, RunStatus,
 };
 
 /// In-memory run state for alpha (will be replaced by PostgreSQL in STO-002).
@@ -140,7 +135,9 @@ impl IngestService for IngestServiceImpl {
         );
 
         Ok(Response::new(InitRunResponse {
-            run_id: Some(RunId { value: run_id.clone() }),
+            run_id: Some(RunId {
+                value: run_id.clone(),
+            }),
             resume_token: format!("resume-{}", run_id),
             server_time: now_timestamp(),
             resumed: false,
@@ -215,7 +212,10 @@ impl IngestService for IngestServiceImpl {
                     name: point.name.clone(),
                     step: point.step,
                     value: point.value,
-                    timestamp: point.timestamp.as_ref().map(|t| t.seconds as f64 + t.nanos as f64 / 1e9),
+                    timestamp: point
+                        .timestamp
+                        .as_ref()
+                        .map(|t| t.seconds as f64 + t.nanos as f64 / 1e9),
                 });
             }
         }
