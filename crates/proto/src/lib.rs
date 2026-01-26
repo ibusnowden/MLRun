@@ -1,6 +1,6 @@
-//! MLRun Protocol Buffer Definitions
+//! `MLRun` Protocol Buffer Definitions
 //!
-//! This crate provides Rust types generated from MLRun's protobuf definitions.
+//! This crate provides Rust types generated from `MLRun`'s protobuf definitions.
 //!
 //! # Modules
 //!
@@ -20,9 +20,11 @@
 //! ```
 
 #![forbid(unsafe_code)]
+#![allow(clippy::all, clippy::pedantic, clippy::nursery)] // Generated code from prost/tonic is clippy-noisy.
 
-/// Generated protobuf types for MLRun v1 API.
+/// Generated protobuf types for `MLRun` v1 API.
 pub mod mlrun {
+    #[allow(clippy::all)]
     pub mod v1 {
         tonic::include_proto!("mlrun.v1");
     }

@@ -116,7 +116,6 @@ def train_epoch(
             )
 
     avg_loss = total_loss / len(train_loader)
-    accuracy = correct / total
     return avg_loss
 
 
