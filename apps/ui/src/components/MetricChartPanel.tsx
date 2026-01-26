@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api, MetricSeries } from '@/lib/api';
+import { UPlotChart } from '@/components/charts/UPlotChart';
 
 interface MetricChartPanelProps {
   runId: string;
@@ -10,50 +11,118 @@ interface MetricChartPanelProps {
 export function MetricChartPanel({ runId }: MetricChartPanelProps) {
   const [series, setSeries] = useState<MetricSeries[]>([]);
   const [availableMetrics, setAvailableMetrics] = useState<string[]>([]);
-  const [selectedMetric, setSelectedMetric] = useState<string>('');
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [maxPoints, setMaxPoints] = useState(500);
+
+  // Fetch metrics
+  const fetchMetrics = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.getMetrics(runId, {
+        names: selectedMetrics.length > 0 ? selectedMetrics : undefined,
+        maxPoints,
+      });
+      setSeries(response.series);
+      setAvailableMetrics(response.available_metrics);
+
+      // Auto-select first metric if none selected
+      if (response.available_metrics.length > 0 && selectedMetrics.length === 0) {
+        setSelectedMetrics([response.available_metrics[0]]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch metrics');
+    } finally {
+      setLoading(false);
+    }
+  }, [runId, selectedMetrics, maxPoints]);
 
   useEffect(() => {
-    async function fetchMetrics() {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await api.getMetrics(runId, { maxPoints: 500 });
-        setSeries(response.series);
-        setAvailableMetrics(response.available_metrics);
-        if (response.available_metrics.length > 0 && !selectedMetric) {
-          setSelectedMetric(response.available_metrics[0]);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch metrics');
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchMetrics();
-  }, [runId, selectedMetric]);
+  }, [fetchMetrics]);
 
-  const currentSeries = series.find((s) => s.name === selectedMetric);
+  // Toggle metric selection
+  const toggleMetric = (name: string) => {
+    setSelectedMetrics((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+    );
+  };
+
+  // Handle viewport change (zoom/pan)
+  const handleViewportChange = useCallback((_min: number, _max: number) => {
+    // Could implement viewport-driven fetching here
+    // For now, just log it
+    // console.log('Viewport:', min, max);
+  }, []);
+
+  // Prepare chart data
+  const chartData = {
+    xData: [] as number[],
+    series: [] as { label: string; data: number[]; color?: string }[],
+  };
+
+  if (series.length > 0) {
+    // Collect all unique steps
+    const allSteps = new Set<number>();
+    series.forEach((s) => s.points.forEach((p) => allSteps.add(p.step)));
+    chartData.xData = Array.from(allSteps).sort((a, b) => a - b);
+
+    // Build series data aligned to steps
+    const stepToIndex = new Map(chartData.xData.map((s, i) => [s, i]));
+
+    series.forEach((s) => {
+      const data = new Array(chartData.xData.length).fill(null);
+      s.points.forEach((p) => {
+        const idx = stepToIndex.get(p.step);
+        if (idx !== undefined) {
+          data[idx] = p.mean;
+        }
+      });
+      chartData.series.push({ label: s.name, data });
+    });
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold">Metrics</h2>
-        {availableMetrics.length > 0 && (
+        <div className="flex gap-2">
           <select
-            value={selectedMetric}
-            onChange={(e) => setSelectedMetric(e.target.value)}
-            className="px-3 py-2 border rounded-lg"
+            value={maxPoints}
+            onChange={(e) => setMaxPoints(parseInt(e.target.value, 10))}
+            className="px-3 py-2 border rounded-lg text-sm"
           >
-            {availableMetrics.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
+            <option value={100}>100 points</option>
+            <option value={500}>500 points</option>
+            <option value={1000}>1000 points</option>
+            <option value={5000}>5000 points</option>
           </select>
-        )}
+        </div>
       </div>
+
+      {/* Metric selector */}
+      {availableMetrics.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {availableMetrics.map((name) => {
+            const isSelected = selectedMetrics.includes(name);
+            return (
+              <button
+                key={name}
+                onClick={() => toggleMetric(name)}
+                className={`px-3 py-1 rounded-full text-sm ${
+                  isSelected
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {name}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
@@ -69,60 +138,55 @@ export function MetricChartPanel({ runId }: MetricChartPanelProps) {
         <div className="h-64 flex items-center justify-center text-gray-500">
           No metrics recorded for this run
         </div>
-      ) : currentSeries ? (
+      ) : chartData.xData.length > 0 ? (
         <div>
-          {/* Simple text-based chart (will be replaced by uPlot in UI-004) */}
-          <div className="h-64 bg-gray-50 rounded-lg p-4 overflow-auto">
-            <div className="text-sm text-gray-500 mb-2">
-              {currentSeries.name} ({currentSeries.total_points} points
-              {currentSeries.downsampled && ', downsampled'})
-            </div>
-            <div className="space-y-1">
-              {currentSeries.points.slice(0, 20).map((point, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm">
-                  <span className="text-gray-500 w-16">step {point.step}</span>
-                  <div className="flex-1 h-4 bg-gray-200 rounded overflow-hidden">
-                    <div
-                      className="h-full bg-blue-500"
-                      style={{
-                        width: `${Math.min(100, (point.mean / Math.max(...currentSeries.points.map(p => p.max))) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                  <span className="w-20 text-right font-mono">
-                    {point.mean.toFixed(4)}
-                  </span>
-                </div>
-              ))}
-              {currentSeries.points.length > 20 && (
-                <div className="text-gray-500 text-sm">
-                  ... and {currentSeries.points.length - 20} more points
-                </div>
-              )}
-            </div>
+          {/* uPlot Chart */}
+          <UPlotChart
+            xData={chartData.xData}
+            series={chartData.series}
+            xLabel="Step"
+            yLabel="Value"
+            height={300}
+            interactive={true}
+            onViewportChange={handleViewportChange}
+          />
+
+          {/* Info */}
+          <div className="mt-2 text-sm text-gray-500">
+            {series.map((s) => (
+              <span key={s.name} className="mr-4">
+                {s.name}: {s.total_points} points
+                {s.downsampled && ' (downsampled)'}
+              </span>
+            ))}
           </div>
+
           {/* Summary stats */}
           <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
-            <div className="bg-gray-50 rounded p-2">
-              <div className="text-gray-500">Min</div>
-              <div className="font-mono">
-                {Math.min(...currentSeries.points.map((p) => p.min)).toFixed(4)}
-              </div>
-            </div>
-            <div className="bg-gray-50 rounded p-2">
-              <div className="text-gray-500">Max</div>
-              <div className="font-mono">
-                {Math.max(...currentSeries.points.map((p) => p.max)).toFixed(4)}
-              </div>
-            </div>
-            <div className="bg-gray-50 rounded p-2">
-              <div className="text-gray-500">Last</div>
-              <div className="font-mono">
-                {currentSeries.points.length > 0
-                  ? currentSeries.points[currentSeries.points.length - 1].mean.toFixed(4)
-                  : '-'}
-              </div>
-            </div>
+            {series.slice(0, 1).map((s) => (
+              <>
+                <div key={`${s.name}-min`} className="bg-gray-50 rounded p-2">
+                  <div className="text-gray-500">Min ({s.name})</div>
+                  <div className="font-mono">
+                    {Math.min(...s.points.map((p) => p.min)).toFixed(4)}
+                  </div>
+                </div>
+                <div key={`${s.name}-max`} className="bg-gray-50 rounded p-2">
+                  <div className="text-gray-500">Max ({s.name})</div>
+                  <div className="font-mono">
+                    {Math.max(...s.points.map((p) => p.max)).toFixed(4)}
+                  </div>
+                </div>
+                <div key={`${s.name}-last`} className="bg-gray-50 rounded p-2">
+                  <div className="text-gray-500">Last ({s.name})</div>
+                  <div className="font-mono">
+                    {s.points.length > 0
+                      ? s.points[s.points.length - 1].mean.toFixed(4)
+                      : '-'}
+                  </div>
+                </div>
+              </>
+            ))}
           </div>
         </div>
       ) : null}
