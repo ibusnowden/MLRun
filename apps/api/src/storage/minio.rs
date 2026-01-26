@@ -154,7 +154,10 @@ impl MinioClient {
 
         // Placeholder: In production, use proper S3 signing
         // This generates a URL that would need the actual presigning logic
-        let url = format!("{}/{}/{}", self.config.endpoint, location.bucket, location.key);
+        let url = format!(
+            "{}/{}/{}",
+            self.config.endpoint, location.bucket, location.key
+        );
 
         let mut headers = std::collections::HashMap::new();
         headers.insert("x-amz-acl".to_string(), "private".to_string());
@@ -177,7 +180,10 @@ impl MinioClient {
         let location = self.get_artifact_location(run_id, artifact_name);
 
         // Placeholder: In production, use proper S3 signing
-        let url = format!("{}/{}/{}", self.config.endpoint, location.bucket, location.key);
+        let url = format!(
+            "{}/{}/{}",
+            self.config.endpoint, location.bucket, location.key
+        );
 
         Ok(PresignedUrl {
             url,
@@ -206,17 +212,12 @@ impl MinioClient {
         _artifact_name: &str,
     ) -> Result<(), MinioError> {
         // Placeholder: In production, use DELETE request
-        Err(MinioError::Config(
-            "Delete not implemented".to_string(),
-        ))
+        Err(MinioError::Config("Delete not implemented".to_string()))
     }
 
     /// List artifacts for a run.
     #[instrument(skip(self))]
-    pub async fn list_artifacts(
-        &self,
-        _run_id: &str,
-    ) -> Result<Vec<ArtifactLocation>, MinioError> {
+    pub async fn list_artifacts(&self, _run_id: &str) -> Result<Vec<ArtifactLocation>, MinioError> {
         // Placeholder: In production, use LIST request with prefix
         Ok(vec![])
     }
@@ -260,7 +261,9 @@ impl ArtifactStore {
         content_length: Option<u64>,
     ) -> Result<(ArtifactLocation, PresignedUrl), MinioError> {
         let location = self.client.get_artifact_location(run_id, artifact_name);
-        let presigned = self.client.presign_upload(run_id, artifact_name, content_type, content_length)?;
+        let presigned =
+            self.client
+                .presign_upload(run_id, artifact_name, content_type, content_length)?;
         Ok((location, presigned))
     }
 
@@ -297,7 +300,10 @@ mod tests {
         let location = ArtifactLocation::new("mlrun-artifacts", "run-123", "model.pt");
         assert_eq!(location.bucket, "mlrun-artifacts");
         assert_eq!(location.key, "runs/run-123/model.pt");
-        assert_eq!(location.storage_url, "minio://mlrun-artifacts/runs/run-123/model.pt");
+        assert_eq!(
+            location.storage_url,
+            "minio://mlrun-artifacts/runs/run-123/model.pt"
+        );
     }
 
     #[test]
@@ -305,7 +311,12 @@ mod tests {
         let config = MinioConfig::default();
         let client = MinioClient::new(config);
 
-        let result = client.presign_upload("run-123", "model.pt", Some("application/octet-stream"), Some(1024));
+        let result = client.presign_upload(
+            "run-123",
+            "model.pt",
+            Some("application/octet-stream"),
+            Some(1024),
+        );
         assert!(result.is_ok());
 
         let presigned = result.unwrap();

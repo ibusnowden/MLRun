@@ -298,7 +298,8 @@ impl CardinalityTracker {
     /// Get current cardinality stats for a run.
     pub async fn get_run_stats(&self, run_id: &str) -> Option<(usize, usize)> {
         let runs = self.runs.read().await;
-        runs.get(run_id).map(|r| (r.tag_keys.len(), r.metric_names.len()))
+        runs.get(run_id)
+            .map(|r| (r.tag_keys.len(), r.metric_names.len()))
     }
 
     /// Get current cardinality stats for a project.
@@ -398,7 +399,12 @@ mod tests {
         assert_eq!(result.accepted_metrics.len(), 2);
         assert_eq!(result.dropped_metrics.len(), 1);
         assert!(result.has_drops());
-        assert!(result.warnings.iter().any(|w| w.contains("max metric names")));
+        assert!(
+            result
+                .warnings
+                .iter()
+                .any(|w| w.contains("max metric names"))
+        );
     }
 
     #[tokio::test]
@@ -417,9 +423,7 @@ mod tests {
         tracker.validate_batch("proj", "run1", &tags1, &[]).await;
 
         // Second batch should be dropped (different run, same project)
-        let tags2 = vec![
-            ("c".to_string(), "3".to_string()),
-        ];
+        let tags2 = vec![("c".to_string(), "3".to_string())];
         let result = tracker.validate_batch("proj", "run2", &tags2, &[]).await;
 
         assert_eq!(result.dropped_tags.len(), 1);
@@ -470,7 +474,12 @@ mod tests {
 
         assert_eq!(result.accepted_tags.len(), 1);
         assert_eq!(result.dropped_tags.len(), 1);
-        assert!(result.warnings.iter().any(|w| w.contains("exceeds max length")));
+        assert!(
+            result
+                .warnings
+                .iter()
+                .any(|w| w.contains("exceeds max length"))
+        );
     }
 
     #[tokio::test]

@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Request, State},
-    http::{request::Parts, StatusCode},
+    http::{StatusCode, request::Parts},
     middleware::Next,
     response::Response,
 };
@@ -93,14 +93,16 @@ impl ApiKeyStore {
 
     /// Check if auth is disabled.
     pub fn is_auth_disabled(&self) -> bool {
-        self.auth_disabled.load(std::sync::atomic::Ordering::Relaxed)
+        self.auth_disabled
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Initialize the store with bootstrap keys from environment.
     pub async fn init_from_env(&self) {
         // Check for dev mode (no auth required)
         if std::env::var("MLRUN_AUTH_DISABLED").map_or(false, |v| v == "true" || v == "1") {
-            self.auth_disabled.store(true, std::sync::atomic::Ordering::Relaxed);
+            self.auth_disabled
+                .store(true, std::sync::atomic::Ordering::Relaxed);
             info!("Authentication disabled (dev mode)");
         }
 
@@ -277,7 +279,9 @@ impl AuthError {
 
     pub fn message(&self) -> &'static str {
         match self {
-            AuthError::MissingKey => "API key required. Use Authorization: Bearer <key> or X-API-Key header.",
+            AuthError::MissingKey => {
+                "API key required. Use Authorization: Bearer <key> or X-API-Key header."
+            }
             AuthError::InvalidKey => "Invalid API key.",
             AuthError::InsufficientScope => "Insufficient permissions.",
             AuthError::ProjectAccessDenied => "Access to project denied.",
@@ -401,11 +405,13 @@ mod tests {
         let store = ApiKeyStore::new();
 
         // Create a key
-        let (raw_key, key) = store.create_key(
-            Some("project-123".to_string()),
-            Some("test-key".to_string()),
-            vec!["ingest".to_string()],
-        ).await;
+        let (raw_key, key) = store
+            .create_key(
+                Some("project-123".to_string()),
+                Some("test-key".to_string()),
+                vec!["ingest".to_string()],
+            )
+            .await;
 
         assert!(raw_key.starts_with("mlrun_"));
         assert_eq!(key.project_id, Some("project-123".to_string()));
@@ -424,11 +430,13 @@ mod tests {
         let store = ApiKeyStore::new();
 
         // Create and revoke a key
-        let (raw_key, key) = store.create_key(
-            None,
-            Some("to-revoke".to_string()),
-            vec!["admin".to_string()],
-        ).await;
+        let (raw_key, key) = store
+            .create_key(
+                None,
+                Some("to-revoke".to_string()),
+                vec!["admin".to_string()],
+            )
+            .await;
 
         // Should be valid before revocation
         assert!(store.validate_key(&raw_key).await.is_some());

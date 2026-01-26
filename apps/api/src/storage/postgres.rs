@@ -167,15 +167,9 @@ impl Parameter {
     pub fn value_as_string(&self) -> String {
         match self.value_type.as_str() {
             "string" => self.value_string.clone().unwrap_or_default(),
-            "float" => self
-                .value_float
-                .map(|v| v.to_string())
-                .unwrap_or_default(),
+            "float" => self.value_float.map(|v| v.to_string()).unwrap_or_default(),
             "int" => self.value_int.map(|v| v.to_string()).unwrap_or_default(),
-            "bool" => self
-                .value_bool
-                .map(|v| v.to_string())
-                .unwrap_or_default(),
+            "bool" => self.value_bool.map(|v| v.to_string()).unwrap_or_default(),
             "json" => self
                 .value_json
                 .as_ref()

@@ -31,23 +31,23 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::{
+    Json, Router,
     extract::State,
     http::StatusCode,
     middleware,
     routing::{get, post},
-    Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use tonic::transport::Server as TonicServer;
 use tracing::{info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+use auth::{ApiKeyStore, auth_middleware};
 use mlrun_proto::mlrun::v1::ingest_service_server::IngestServiceServer;
 use services::{
-    compute_payload_hash, ingest::InMemoryStore, CardinalityTracker, IdempotencyResult,
-    IdempotencyStore, IngestServiceImpl, MetricPayload, ParamPayload, TagPayload,
+    CardinalityTracker, IdempotencyResult, IdempotencyStore, IngestServiceImpl, MetricPayload,
+    ParamPayload, TagPayload, compute_payload_hash, ingest::InMemoryStore,
 };
-use auth::{ApiKeyStore, auth_middleware};
 
 /// Application state shared across handlers.
 #[derive(Clone)]
@@ -92,7 +92,9 @@ async fn http_init_run(
     State(state): State<AppState>,
     Json(req): Json<InitRunHttpRequest>,
 ) -> Result<Json<InitRunHttpResponse>, (StatusCode, String)> {
-    let run_id = req.run_id.unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
+    let run_id = req
+        .run_id
+        .unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
 
     let mut runs = state.store.runs.write().await;
 
@@ -189,11 +191,15 @@ async fn http_ingest_batch(
     Json(req): Json<IngestBatchHttpRequest>,
 ) -> Result<Json<IngestBatchHttpResponse>, (StatusCode, String)> {
     // Generate batch_id if not provided
-    let batch_id = req.batch_id.unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
+    let batch_id = req
+        .batch_id
+        .unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
     let seq = req.seq.unwrap_or(0);
 
     // Convert request data for hashing
-    let metric_payloads: Vec<MetricPayload> = req.metrics.iter()
+    let metric_payloads: Vec<MetricPayload> = req
+        .metrics
+        .iter()
         .map(|m| MetricPayload {
             name: m.name.clone(),
             value: m.value,
@@ -201,14 +207,18 @@ async fn http_ingest_batch(
         })
         .collect();
 
-    let param_payloads: Vec<ParamPayload> = req.params.iter()
+    let param_payloads: Vec<ParamPayload> = req
+        .params
+        .iter()
         .map(|p| ParamPayload {
             name: p.name.clone(),
             value: p.value.clone(),
         })
         .collect();
 
-    let tag_payloads: Vec<TagPayload> = req.tags.iter()
+    let tag_payloads: Vec<TagPayload> = req
+        .tags
+        .iter()
         .map(|t| TagPayload {
             key: t.key.clone(),
             value: t.value.clone(),
@@ -235,16 +245,19 @@ async fn http_ingest_batch(
         run.project_id.clone()
     };
 
-    let idempotency_result = state.idempotency_store.check_and_record(
-        &project_id,
-        &req.run_id,
-        &batch_id,
-        seq,
-        &payload_hash,
-        metric_count as i32,
-        param_count as i32,
-        tag_count as i32,
-    ).await;
+    let idempotency_result = state
+        .idempotency_store
+        .check_and_record(
+            &project_id,
+            &req.run_id,
+            &batch_id,
+            seq,
+            &payload_hash,
+            metric_count as i32,
+            param_count as i32,
+            tag_count as i32,
+        )
+        .await;
 
     // Handle idempotency results
     let mut warnings = Vec::new();
@@ -259,7 +272,10 @@ async fn http_ingest_batch(
                 warnings: vec![],
             }));
         }
-        IdempotencyResult::Conflict { expected_hash, actual_hash } => {
+        IdempotencyResult::Conflict {
+            expected_hash,
+            actual_hash,
+        } => {
             // Conflicting batch - error
             return Err((
                 StatusCode::CONFLICT,
@@ -269,7 +285,10 @@ async fn http_ingest_batch(
                 ),
             ));
         }
-        IdempotencyResult::OutOfOrder { expected_seq, actual_seq } => {
+        IdempotencyResult::OutOfOrder {
+            expected_seq,
+            actual_seq,
+        } => {
             warnings.push(format!(
                 "Batch received out of order (expected seq >= {}, got {})",
                 expected_seq, actual_seq
@@ -281,26 +300,30 @@ async fn http_ingest_batch(
     }
 
     // Validate cardinality limits
-    let tags_for_validation: Vec<(String, String)> = req.tags.iter()
+    let tags_for_validation: Vec<(String, String)> = req
+        .tags
+        .iter()
         .map(|t| (t.key.clone(), t.value.clone()))
         .collect();
-    let metric_names: Vec<String> = req.metrics.iter()
-        .map(|m| m.name.clone())
-        .collect();
+    let metric_names: Vec<String> = req.metrics.iter().map(|m| m.name.clone()).collect();
 
-    let validation = state.cardinality_tracker.validate_batch(
-        &project_id,
-        &req.run_id,
-        &tags_for_validation,
-        &metric_names,
-    ).await;
+    let validation = state
+        .cardinality_tracker
+        .validate_batch(
+            &project_id,
+            &req.run_id,
+            &tags_for_validation,
+            &metric_names,
+        )
+        .await;
 
     // Add cardinality warnings
     warnings.extend(validation.warnings.clone());
 
     // Filter metrics and tags based on validation
     let accepted_tags = &validation.accepted_tags;
-    let accepted_metrics: std::collections::HashSet<_> = validation.accepted_metrics.iter().collect();
+    let accepted_metrics: std::collections::HashSet<_> =
+        validation.accepted_metrics.iter().collect();
 
     // Now process the batch
     let mut runs = state.store.runs.write().await;
@@ -320,7 +343,9 @@ async fn http_ingest_batch(
     }
 
     // Count only accepted items
-    let accepted_metric_count = req.metrics.iter()
+    let accepted_metric_count = req
+        .metrics
+        .iter()
         .filter(|m| accepted_metrics.contains(&m.name))
         .count();
     let accepted_tag_count = accepted_tags.len();
@@ -376,9 +401,9 @@ async fn http_finish_run(
 ) -> Result<Json<FinishRunHttpResponse>, (StatusCode, String)> {
     let mut runs = state.store.runs.write().await;
 
-    let run = runs.get_mut(&run_id).ok_or_else(|| {
-        (StatusCode::NOT_FOUND, format!("Run not found: {}", run_id))
-    })?;
+    let run = runs
+        .get_mut(&run_id)
+        .ok_or_else(|| (StatusCode::NOT_FOUND, format!("Run not found: {}", run_id)))?;
 
     run.status = match req.status.as_str() {
         "finished" => mlrun_proto::mlrun::v1::RunStatus::Finished,
@@ -552,9 +577,9 @@ async fn http_get_run(
 ) -> Result<Json<RunDetailResponse>, (StatusCode, String)> {
     let runs = state.store.runs.read().await;
 
-    let run = runs.get(&run_id).ok_or_else(|| {
-        (StatusCode::NOT_FOUND, format!("Run not found: {}", run_id))
-    })?;
+    let run = runs
+        .get(&run_id)
+        .ok_or_else(|| (StatusCode::NOT_FOUND, format!("Run not found: {}", run_id)))?;
 
     let duration = run
         .updated_at
@@ -628,7 +653,11 @@ async fn http_get_metrics(
     let names: Vec<String> = if query.names.is_empty() {
         vec![]
     } else {
-        query.names.split(',').map(|s| s.trim().to_string()).collect()
+        query
+            .names
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .collect()
     };
 
     // Query metrics
@@ -701,11 +730,17 @@ async fn http_compare_runs(
     Json(req): Json<CompareRunsRequest>,
 ) -> Result<Json<CompareRunsResponse>, (StatusCode, String)> {
     if req.run_ids.is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "run_ids cannot be empty".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "run_ids cannot be empty".to_string(),
+        ));
     }
 
     if req.run_ids.len() > 100 {
-        return Err((StatusCode::BAD_REQUEST, "Maximum 100 runs can be compared".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Maximum 100 runs can be compared".to_string(),
+        ));
     }
 
     let runs_store = state.store.runs.read().await;
@@ -717,9 +752,9 @@ async fn http_compare_runs(
 
     for run_id in &req.run_ids {
         // Get run info
-        let run = runs_store.get(run_id).ok_or_else(|| {
-            (StatusCode::NOT_FOUND, format!("Run not found: {}", run_id))
-        })?;
+        let run = runs_store
+            .get(run_id)
+            .ok_or_else(|| (StatusCode::NOT_FOUND, format!("Run not found: {}", run_id)))?;
 
         // Get run metrics
         let run_metrics = metrics_store.get(run_id);
@@ -904,7 +939,12 @@ mod tests {
         let key_store = Arc::new(ApiKeyStore::new_dev_mode());
         let idempotency_store = Arc::new(IdempotencyStore::new());
         let cardinality_tracker = Arc::new(CardinalityTracker::default());
-        let state = AppState { store, key_store, idempotency_store, cardinality_tracker };
+        let state = AppState {
+            store,
+            key_store,
+            idempotency_store,
+            cardinality_tracker,
+        };
         build_http_router(state)
     }
 

@@ -8,8 +8,8 @@ pub mod limits;
 pub mod metrics;
 
 pub use idempotency::{
-    compute_payload_hash, IdempotencyResult, IdempotencyStore, MetricPayload,
-    ParamPayload, SharedIdempotencyStore, TagPayload,
+    IdempotencyResult, IdempotencyStore, MetricPayload, ParamPayload, SharedIdempotencyStore,
+    TagPayload, compute_payload_hash,
 };
 pub use ingest::IngestServiceImpl;
 pub use limits::{CardinalityTracker, LimitsConfig, SharedCardinalityTracker, ValidationResult};

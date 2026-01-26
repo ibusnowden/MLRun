@@ -7,7 +7,9 @@ pub mod minio;
 pub mod postgres;
 
 pub use clickhouse::{ClickHouseClient, MetricsRepository};
-pub use minio::{ArtifactLocation, ArtifactStore, MinioClient, MinioConfig, MinioError, PresignedUrl};
+pub use minio::{
+    ArtifactLocation, ArtifactStore, MinioClient, MinioConfig, MinioError, PresignedUrl,
+};
 pub use postgres::{
     Artifact, ArtifactRepository, ArtifactType, CreateArtifactInput, CreateParameterInput,
     CreateProjectInput, CreateRunInput, ListRunsFilter, Parameter, ParameterRepository,

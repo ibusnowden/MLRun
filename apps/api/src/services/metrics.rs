@@ -173,7 +173,10 @@ impl RunMetrics {
         let query_names: Vec<&String> = if names.is_empty() {
             self.metrics.keys().collect()
         } else {
-            names.iter().filter(|n| self.metrics.contains_key(*n)).collect()
+            names
+                .iter()
+                .filter(|n| self.metrics.contains_key(*n))
+                .collect()
         };
 
         query_names

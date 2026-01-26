@@ -20,7 +20,10 @@ pub enum IdempotencyResult {
     /// Batch is a duplicate (same batch_id, same payload hash)
     Duplicate,
     /// Batch conflicts (same batch_id, different payload hash)
-    Conflict { expected_hash: String, actual_hash: String },
+    Conflict {
+        expected_hash: String,
+        actual_hash: String,
+    },
     /// Sequence is out of order but accepted
     OutOfOrder { expected_seq: i64, actual_seq: i64 },
 }
@@ -239,10 +242,7 @@ pub fn compute_payload_hash(
 
     // Hash metrics (sorted by name, then step for determinism)
     let mut sorted_metrics: Vec<_> = metrics.iter().collect();
-    sorted_metrics.sort_by(|a, b| {
-        a.name.cmp(&b.name)
-            .then_with(|| a.step.cmp(&b.step))
-    });
+    sorted_metrics.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.step.cmp(&b.step)));
 
     for m in sorted_metrics {
         hasher.update(m.name.as_bytes());
@@ -303,15 +303,25 @@ mod tests {
     #[test]
     fn test_compute_payload_hash() {
         let metrics = vec![
-            MetricPayload { name: "loss".to_string(), value: 0.5, step: 1 },
-            MetricPayload { name: "acc".to_string(), value: 0.9, step: 1 },
+            MetricPayload {
+                name: "loss".to_string(),
+                value: 0.5,
+                step: 1,
+            },
+            MetricPayload {
+                name: "acc".to_string(),
+                value: 0.9,
+                step: 1,
+            },
         ];
-        let params = vec![
-            ParamPayload { name: "lr".to_string(), value: "0.001".to_string() },
-        ];
-        let tags = vec![
-            TagPayload { key: "env".to_string(), value: "dev".to_string() },
-        ];
+        let params = vec![ParamPayload {
+            name: "lr".to_string(),
+            value: "0.001".to_string(),
+        }];
+        let tags = vec![TagPayload {
+            key: "env".to_string(),
+            value: "dev".to_string(),
+        }];
 
         let hash1 = compute_payload_hash(&metrics, &params, &tags);
         let hash2 = compute_payload_hash(&metrics, &params, &tags);
@@ -320,9 +330,11 @@ mod tests {
         assert_eq!(hash1, hash2);
 
         // Different input should produce different hash
-        let metrics2 = vec![
-            MetricPayload { name: "loss".to_string(), value: 0.6, step: 1 },
-        ];
+        let metrics2 = vec![MetricPayload {
+            name: "loss".to_string(),
+            value: 0.6,
+            step: 1,
+        }];
         let hash3 = compute_payload_hash(&metrics2, &params, &tags);
         assert_ne!(hash1, hash3);
     }
@@ -331,12 +343,28 @@ mod tests {
     fn test_hash_order_independence() {
         // Metrics in different order should produce same hash
         let metrics1 = vec![
-            MetricPayload { name: "b".to_string(), value: 1.0, step: 1 },
-            MetricPayload { name: "a".to_string(), value: 2.0, step: 1 },
+            MetricPayload {
+                name: "b".to_string(),
+                value: 1.0,
+                step: 1,
+            },
+            MetricPayload {
+                name: "a".to_string(),
+                value: 2.0,
+                step: 1,
+            },
         ];
         let metrics2 = vec![
-            MetricPayload { name: "a".to_string(), value: 2.0, step: 1 },
-            MetricPayload { name: "b".to_string(), value: 1.0, step: 1 },
+            MetricPayload {
+                name: "a".to_string(),
+                value: 2.0,
+                step: 1,
+            },
+            MetricPayload {
+                name: "b".to_string(),
+                value: 1.0,
+                step: 1,
+            },
         ];
 
         let hash1 = compute_payload_hash(&metrics1, &[], &[]);
@@ -349,16 +377,9 @@ mod tests {
     async fn test_idempotency_new_batch() {
         let store = IdempotencyStore::new();
 
-        let result = store.check_and_record(
-            "project-1",
-            "run-1",
-            "batch-1",
-            1,
-            "hash123",
-            10,
-            5,
-            2,
-        ).await;
+        let result = store
+            .check_and_record("project-1", "run-1", "batch-1", 1, "hash123", 10, 5, 2)
+            .await;
 
         assert_eq!(result, IdempotencyResult::New);
         assert!(result.should_process());
@@ -370,10 +391,14 @@ mod tests {
         let store = IdempotencyStore::new();
 
         // First batch
-        store.check_and_record("p", "r", "b", 1, "hash", 1, 0, 0).await;
+        store
+            .check_and_record("p", "r", "b", 1, "hash", 1, 0, 0)
+            .await;
 
         // Same batch again (same hash)
-        let result = store.check_and_record("p", "r", "b", 1, "hash", 1, 0, 0).await;
+        let result = store
+            .check_and_record("p", "r", "b", 1, "hash", 1, 0, 0)
+            .await;
 
         assert_eq!(result, IdempotencyResult::Duplicate);
         assert!(!result.should_process());
@@ -385,10 +410,14 @@ mod tests {
         let store = IdempotencyStore::new();
 
         // First batch
-        store.check_and_record("p", "r", "b", 1, "hash1", 1, 0, 0).await;
+        store
+            .check_and_record("p", "r", "b", 1, "hash1", 1, 0, 0)
+            .await;
 
         // Same batch_id but different hash (conflict!)
-        let result = store.check_and_record("p", "r", "b", 1, "hash2", 1, 0, 0).await;
+        let result = store
+            .check_and_record("p", "r", "b", 1, "hash2", 1, 0, 0)
+            .await;
 
         assert!(matches!(result, IdempotencyResult::Conflict { .. }));
         assert!(!result.should_process());
@@ -400,15 +429,21 @@ mod tests {
         let store = IdempotencyStore::new();
 
         // Batch with seq 1
-        store.check_and_record("p", "r", "b1", 1, "h1", 1, 0, 0).await;
+        store
+            .check_and_record("p", "r", "b1", 1, "h1", 1, 0, 0)
+            .await;
         assert_eq!(store.get_sequence("r").await, 1);
 
         // Batch with seq 5
-        store.check_and_record("p", "r", "b2", 5, "h2", 1, 0, 0).await;
+        store
+            .check_and_record("p", "r", "b2", 5, "h2", 1, 0, 0)
+            .await;
         assert_eq!(store.get_sequence("r").await, 5);
 
         // Batch with seq 3 (out of order)
-        let result = store.check_and_record("p", "r", "b3", 3, "h3", 1, 0, 0).await;
+        let result = store
+            .check_and_record("p", "r", "b3", 3, "h3", 1, 0, 0)
+            .await;
         assert!(matches!(result, IdempotencyResult::OutOfOrder { .. }));
         // Sequence should still be 5
         assert_eq!(store.get_sequence("r").await, 5);
@@ -418,7 +453,9 @@ mod tests {
     async fn test_get_batch() {
         let store = IdempotencyStore::new();
 
-        store.check_and_record("proj", "run", "batch", 1, "hash", 10, 5, 2).await;
+        store
+            .check_and_record("proj", "run", "batch", 1, "hash", 10, 5, 2)
+            .await;
 
         let batch = store.get_batch("run", "batch").await.unwrap();
         assert_eq!(batch.project_id, "proj");
@@ -436,9 +473,15 @@ mod tests {
     async fn test_clear_run() {
         let store = IdempotencyStore::new();
 
-        store.check_and_record("p", "r1", "b1", 1, "h1", 1, 0, 0).await;
-        store.check_and_record("p", "r1", "b2", 2, "h2", 1, 0, 0).await;
-        store.check_and_record("p", "r2", "b1", 1, "h3", 1, 0, 0).await;
+        store
+            .check_and_record("p", "r1", "b1", 1, "h1", 1, 0, 0)
+            .await;
+        store
+            .check_and_record("p", "r1", "b2", 2, "h2", 1, 0, 0)
+            .await;
+        store
+            .check_and_record("p", "r2", "b1", 1, "h3", 1, 0, 0)
+            .await;
 
         // Clear run1
         store.clear_run("r1").await;

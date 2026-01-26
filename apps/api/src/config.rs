@@ -97,10 +97,14 @@ impl ServerConfig {
         info!("MLRun API Configuration:");
         info!("  HTTP Server: {}", self.http_addr);
         info!("  gRPC Server: {}", self.grpc_addr);
-        info!("  Ingest Mode: {} ({})", self.ingest_mode.as_str(), match self.ingest_mode {
-            IngestMode::Direct => "writes directly to CH/PG",
-            IngestMode::Queued => "writes through queue",
-        });
+        info!(
+            "  Ingest Mode: {} ({})",
+            self.ingest_mode.as_str(),
+            match self.ingest_mode {
+                IngestMode::Direct => "writes directly to CH/PG",
+                IngestMode::Queued => "writes through queue",
+            }
+        );
     }
 }
 
