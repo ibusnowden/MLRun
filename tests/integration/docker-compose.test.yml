@@ -1,0 +1,112 @@
+# MLRun Integration Test Stack
+# Ephemeral services for running integration tests.
+# See: TEST-002 for specification.
+#
+# Usage:
+#   docker compose -f docker-compose.test.yml up -d
+#   python runner.py
+#   docker compose -f docker-compose.test.yml down -v
+
+services:
+  # ClickHouse - Time-series metrics storage
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: mlrun-test-clickhouse
+    ports:
+      - "18123:8123"  # HTTP (offset to avoid conflicts)
+      - "19000:9000"  # Native TCP
+    environment:
+      CLICKHOUSE_DB: mlrun_test
+      CLICKHOUSE_USER: mlrun
+      CLICKHOUSE_PASSWORD: test_password
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "mlrun", "--password", "test_password", "--query", "SELECT 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    tmpfs:
+      - /var/lib/clickhouse  # Ephemeral storage for tests
+
+  # PostgreSQL - Metadata storage
+  postgres:
+    image: postgres:16-alpine
+    container_name: mlrun-test-postgres
+    ports:
+      - "15432:5432"  # Offset to avoid conflicts
+    environment:
+      POSTGRES_DB: mlrun_test
+      POSTGRES_USER: mlrun
+      POSTGRES_PASSWORD: test_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mlrun -d mlrun_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    tmpfs:
+      - /var/lib/postgresql/data  # Ephemeral storage for tests
+
+  # MinIO - Object storage for artifacts
+  minio:
+    image: minio/minio:latest
+    container_name: mlrun-test-minio
+    ports:
+      - "19001:9000"  # API (offset to avoid conflicts)
+      - "19002:9001"  # Console
+    environment:
+      MINIO_ROOT_USER: mlrun
+      MINIO_ROOT_PASSWORD: test_password_secret
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    tmpfs:
+      - /data  # Ephemeral storage for tests
+
+  # Redis - Caching and rate limiting (optional for alpha)
+  redis:
+    image: redis:7-alpine
+    container_name: mlrun-test-redis
+    ports:
+      - "16379:6379"  # Offset to avoid conflicts
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # MLRun API Server (built from source)
+  api:
+    build:
+      context: ../..
+      dockerfile: tests/integration/Dockerfile.api
+    container_name: mlrun-test-api
+    ports:
+      - "13001:3001"  # HTTP API
+      - "15051:50051" # gRPC
+    environment:
+      RUST_LOG: info,mlrun_api=debug
+      MLRUN_HTTP_PORT: "3001"
+      MLRUN_GRPC_PORT: "50051"
+      MLRUN_DEV_MODE: "true"  # Disable auth for tests
+      DATABASE_URL: postgres://mlrun:test_password@postgres:5432/mlrun_test
+      CLICKHOUSE_URL: http://clickhouse:8123
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: "no"
+
+networks:
+  default:
+    name: mlrun-test-network

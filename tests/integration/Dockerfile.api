@@ -1,0 +1,46 @@
+# MLRun API - Integration Test Build
+# Builds the API server for integration testing.
+
+FROM rust:1.82-slim AS builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    protobuf-compiler \
+    libprotobuf-dev \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy manifests first for caching
+COPY Cargo.toml Cargo.lock ./
+COPY apps/api/Cargo.toml apps/api/
+COPY proto/ proto/
+
+# Create dummy source files for dependency caching
+RUN mkdir -p apps/api/src && \
+    echo "fn main() {}" > apps/api/src/main.rs
+
+# Build dependencies (cached layer)
+RUN cargo build --release --package mlrun-api 2>/dev/null || true
+
+# Copy actual source
+COPY apps/api/src apps/api/src
+
+# Build the API
+RUN cargo build --release --package mlrun-api
+
+# Runtime stage
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/target/release/mlrun-api /usr/local/bin/mlrun-api
+
+EXPOSE 3001 50051
+
+CMD ["mlrun-api"]
