@@ -33,12 +33,6 @@ spec:
             - configMapRef:
                 name: mlrun-config
           env:
-            - name: DATABASE_URL
-              value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DATABASE)"
-            - name: CLICKHOUSE_URL
-              value: "http://$(CLICKHOUSE_HOST):$(CLICKHOUSE_PORT)"
-            - name: REDIS_URL
-              value: "redis://$(REDIS_HOST):$(REDIS_PORT)"
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -64,6 +58,12 @@ spec:
                 secretKeyRef:
                   name: mlrun-secrets
                   key: MLRUN_API_KEY
+            - name: DATABASE_URL
+              value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DATABASE)"
+            - name: CLICKHOUSE_URL
+              value: "http://$(CLICKHOUSE_HOST):$(CLICKHOUSE_PORT)"
+            - name: REDIS_URL
+              value: "redis://$(REDIS_HOST):$(REDIS_PORT)"
           livenessProbe:
             httpGet:
               path: /health

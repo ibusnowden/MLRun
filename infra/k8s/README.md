@@ -41,13 +41,13 @@ sed -i 's|mlrun-ui:latest|your-registry/mlrun-ui:latest|g' base/ui.yaml
 
 ### 3. Configure Secrets
 
-**Important**: Update the secrets in `base/configmap.yaml` before deploying!
+**Important**: Update the Secret manifest in `base/configmap.yaml` before deploying.
 
 ```bash
 # Generate a secure API key
 openssl rand -hex 32
 
-# Edit the secrets
+# Generate a Secret manifest and replace the Secret block in base/configmap.yaml
 kubectl create secret generic mlrun-secrets \
   --namespace mlrun \
   --from-literal=CLICKHOUSE_PASSWORD='your-secure-password' \
@@ -55,7 +55,7 @@ kubectl create secret generic mlrun-secrets \
   --from-literal=MINIO_ACCESS_KEY='your-access-key' \
   --from-literal=MINIO_SECRET_KEY='your-secure-secret' \
   --from-literal=MLRUN_API_KEY='your-api-key' \
-  --dry-run=client -o yaml > secrets.yaml
+  --dry-run=client -o yaml > /tmp/mlrun-secrets.yaml
 ```
 
 ### 4. Deploy with Kustomize
