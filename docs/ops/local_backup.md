@@ -51,8 +51,8 @@ backups/
     ├── manifest.json              # Backup metadata
     ├── postgres.sql.gz            # PostgreSQL dump (compressed)
     ├── clickhouse_metrics.native.gz    # Metrics table (compressed)
-    ├── clickhouse_metrics_summary.native.gz  # Summary table
-    ├── clickhouse_schema.sql      # Table schemas
+    ├── clickhouse_system_metrics.native.gz   # System metrics (optional)
+    ├── clickhouse_schema.sql      # ClickHouse schema (tables + views)
     └── minio.tar.gz               # Artifacts archive
 ```
 
@@ -163,7 +163,7 @@ find /path/to/backups/weekly -maxdepth 1 -type d -mtime +28 -exec rm -rf {} \;
 
 - The restore script will **OVERWRITE** existing data
 - PostgreSQL restore uses `--clean --if-exists` (drops and recreates objects)
-- ClickHouse tables are truncated before insert
+- ClickHouse tables are truncated before insert (derived tables are rebuilt from metrics)
 - MinIO files are overwritten if they exist
 
 ### After Restore

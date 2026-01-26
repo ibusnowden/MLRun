@@ -99,23 +99,28 @@ if check_container "${CLICKHOUSE_CONTAINER}"; then
         --query "SELECT * FROM mlrun.metrics FORMAT Native" \
         > "${BACKUP_DIR}/clickhouse_metrics.native" 2>/dev/null || true
 
-    # Export metrics_summary table
+    # Export system_metrics table (optional)
     docker exec "${CLICKHOUSE_CONTAINER}" clickhouse-client \
         --user "${CLICKHOUSE_USER}" \
         --password "${CLICKHOUSE_PASSWORD}" \
-        --query "SELECT * FROM mlrun.metrics_summary FORMAT Native" \
-        > "${BACKUP_DIR}/clickhouse_metrics_summary.native" 2>/dev/null || true
+        --query "SELECT * FROM mlrun.system_metrics FORMAT Native" \
+        > "${BACKUP_DIR}/clickhouse_system_metrics.native" 2>/dev/null || true
 
-    # Export schema
-    docker exec "${CLICKHOUSE_CONTAINER}" clickhouse-client \
-        --user "${CLICKHOUSE_USER}" \
-        --password "${CLICKHOUSE_PASSWORD}" \
-        --query "SHOW CREATE TABLE mlrun.metrics" \
-        > "${BACKUP_DIR}/clickhouse_schema.sql" 2>/dev/null || true
+    # Export schema (prefer repo migration file for full schema)
+    CLICKHOUSE_SCHEMA_SRC="${DOCKER_DIR}/../../migrations/clickhouse/001_metrics_schema.sql"
+    if [ -f "${CLICKHOUSE_SCHEMA_SRC}" ]; then
+        cp "${CLICKHOUSE_SCHEMA_SRC}" "${BACKUP_DIR}/clickhouse_schema.sql"
+    else
+        docker exec "${CLICKHOUSE_CONTAINER}" clickhouse-client \
+            --user "${CLICKHOUSE_USER}" \
+            --password "${CLICKHOUSE_PASSWORD}" \
+            --query "SHOW CREATE TABLE mlrun.metrics" \
+            > "${BACKUP_DIR}/clickhouse_schema.sql" 2>/dev/null || true
+    fi
 
     # Compress
     gzip "${BACKUP_DIR}/clickhouse_metrics.native" 2>/dev/null || true
-    gzip "${BACKUP_DIR}/clickhouse_metrics_summary.native" 2>/dev/null || true
+    gzip "${BACKUP_DIR}/clickhouse_system_metrics.native" 2>/dev/null || true
 
     log_info "ClickHouse backup complete"
 else

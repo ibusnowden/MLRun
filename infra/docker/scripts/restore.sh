@@ -137,10 +137,11 @@ if [ -f "${BACKUP_DIR}/clickhouse_metrics.native.gz" ]; then
     if check_container "${CLICKHOUSE_CONTAINER}"; then
         # Restore schema first (if exists)
         if [ -f "${BACKUP_DIR}/clickhouse_schema.sql" ]; then
-            docker exec "${CLICKHOUSE_CONTAINER}" clickhouse-client \
-                --user "${CLICKHOUSE_USER}" \
-                --password "${CLICKHOUSE_PASSWORD}" \
-                --query "$(cat ${BACKUP_DIR}/clickhouse_schema.sql)" 2>/dev/null || true
+            cat "${BACKUP_DIR}/clickhouse_schema.sql" | \
+                docker exec -i "${CLICKHOUSE_CONTAINER}" clickhouse-client \
+                    --user "${CLICKHOUSE_USER}" \
+                    --password "${CLICKHOUSE_PASSWORD}" \
+                    --multiquery 2>/dev/null || true
         fi
 
         # Clear existing data
@@ -154,6 +155,16 @@ if [ -f "${BACKUP_DIR}/clickhouse_metrics.native.gz" ]; then
             --password "${CLICKHOUSE_PASSWORD}" \
             --query "TRUNCATE TABLE IF EXISTS mlrun.metrics_summary" 2>/dev/null || true
 
+        docker exec "${CLICKHOUSE_CONTAINER}" clickhouse-client \
+            --user "${CLICKHOUSE_USER}" \
+            --password "${CLICKHOUSE_PASSWORD}" \
+            --query "TRUNCATE TABLE IF EXISTS mlrun.run_metrics_count" 2>/dev/null || true
+
+        docker exec "${CLICKHOUSE_CONTAINER}" clickhouse-client \
+            --user "${CLICKHOUSE_USER}" \
+            --password "${CLICKHOUSE_PASSWORD}" \
+            --query "TRUNCATE TABLE IF EXISTS mlrun.system_metrics" 2>/dev/null || true
+
         # Restore metrics
         gunzip -c "${BACKUP_DIR}/clickhouse_metrics.native.gz" | \
             docker exec -i "${CLICKHOUSE_CONTAINER}" clickhouse-client \
@@ -161,13 +172,13 @@ if [ -f "${BACKUP_DIR}/clickhouse_metrics.native.gz" ]; then
                 --password "${CLICKHOUSE_PASSWORD}" \
                 --query "INSERT INTO mlrun.metrics FORMAT Native" 2>/dev/null || true
 
-        # Restore metrics_summary
-        if [ -f "${BACKUP_DIR}/clickhouse_metrics_summary.native.gz" ]; then
-            gunzip -c "${BACKUP_DIR}/clickhouse_metrics_summary.native.gz" | \
+        # Restore system_metrics (optional)
+        if [ -f "${BACKUP_DIR}/clickhouse_system_metrics.native.gz" ]; then
+            gunzip -c "${BACKUP_DIR}/clickhouse_system_metrics.native.gz" | \
                 docker exec -i "${CLICKHOUSE_CONTAINER}" clickhouse-client \
                     --user "${CLICKHOUSE_USER}" \
                     --password "${CLICKHOUSE_PASSWORD}" \
-                    --query "INSERT INTO mlrun.metrics_summary FORMAT Native" 2>/dev/null || true
+                    --query "INSERT INTO mlrun.system_metrics FORMAT Native" 2>/dev/null || true
         fi
 
         log_info "ClickHouse restore complete"
