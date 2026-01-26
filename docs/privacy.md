@@ -29,16 +29,14 @@ On a typical Docker installation:
 
 ## Data Retention
 
-MLRun applies the following default retention policies:
+MLRun currently enforces metrics retention via ClickHouse TTL (90 days by default). Other retention settings are planned; until then, artifacts and logs are kept until manually deleted.
 
 | Data Type | Default Retention | Configuration |
 |-----------|------------------|---------------|
-| Metrics | 90 days | `MLRUN_METRICS_RETENTION_DAYS` |
-| Artifacts | 365 days | `MLRUN_ARTIFACTS_RETENTION_DAYS` |
-| System Logs | 7 days | `MLRUN_LOGS_RETENTION_DAYS` |
-| Metadata | Forever | Manual deletion |
-
-Set retention to `0` to disable automatic deletion.
+| Metrics | 90 days | ClickHouse schema TTL |
+| Artifacts | Manual deletion | N/A (planned) |
+| System Logs | Manual deletion | N/A (planned) |
+| Metadata | Manual deletion | N/A |
 
 ## Telemetry Configuration
 
@@ -70,7 +68,7 @@ Telemetry would **never** collect:
 
 ## Network Isolation
 
-The default Docker Compose setup uses an isolated bridge network (`mlrun-network`). Services communicate internally and only expose the following ports to localhost:
+The default Docker Compose setup uses an isolated bridge network (`mlrun-network`). Services communicate internally and expose the following ports on the host by default:
 
 | Port | Service | Access |
 |------|---------|--------|
@@ -160,7 +158,7 @@ docker volume rm mlrun_minio-data
 
 3. **Disable dev mode in production**:
    ```bash
-   MLRUN_DEV_MODE=false
+   MLRUN_AUTH_DISABLED=false
    ```
 
 4. **Use network isolation** in production deployments
