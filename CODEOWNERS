@@ -1,0 +1,48 @@
+# MLRun Code Owners
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything
+* @ibusnowden
+
+# =============================================================================
+# Core Infrastructure
+# =============================================================================
+
+# Rust services
+/apps/api/                    @ibusnowden
+/services/ingest/             @ibusnowden
+/services/processor/          @ibusnowden
+/Cargo.toml                   @ibusnowden
+/Cargo.lock                   @ibusnowden
+
+# Python SDK
+/sdks/python/                 @ibusnowden
+/sdks/integrations/           @ibusnowden
+/pyproject.toml               @ibusnowden
+
+# UI
+/apps/ui/                     @ibusnowden
+
+# =============================================================================
+# Infrastructure & DevOps
+# =============================================================================
+
+/infra/                       @ibusnowden
+/.github/                     @ibusnowden
+/Makefile                     @ibusnowden
+
+# =============================================================================
+# Documentation & Specs
+# =============================================================================
+
+/docs/                        @ibusnowden
+/proto/                       @ibusnowden
+/README.md                    @ibusnowden
+/CONTRIBUTING.md              @ibusnowden
+
+# =============================================================================
+# Tests & Benchmarks
+# =============================================================================
+
+/tests/                       @ibusnowden
+/bench/                       @ibusnowden

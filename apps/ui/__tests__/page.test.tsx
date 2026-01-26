@@ -1,0 +1,33 @@
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+  }),
+}))
+
+vi.mock('@/lib/api', () => ({
+  api: {
+    listRuns: vi.fn().mockResolvedValue({ runs: [], total: 0 }),
+  },
+}))
+
+import Page from '../src/app/page'
+
+describe('Home Page', () => {
+  it('renders the MLRun heading', async () => {
+    render(<Page />)
+    const heading = screen.getByRole('heading', { level: 1 })
+    expect(heading).toBeDefined()
+    expect(heading.textContent).toContain('MLRun')
+    await screen.findByText(/no runs found/i)
+  })
+
+  it('displays the welcome message', async () => {
+    render(<Page />)
+    const text = screen.getByText(/experiment tracking/i)
+    expect(text).toBeDefined()
+    await screen.findByText(/no runs found/i)
+  })
+})

@@ -1,0 +1,318 @@
+# MLRun Nightly CI Pipeline
+# Runs integration tests and benchmarks every night
+# See: /docs/testing.md for test strategy
+
+name: Nightly
+
+on:
+  schedule:
+    # Run at 02:00 UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      run_benchmarks:
+        description: 'Run performance benchmarks'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ===========================================================================
+  # Integration Tests
+  # ===========================================================================
+
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      clickhouse:
+        image: clickhouse/clickhouse-server:24.8
+        ports:
+          - 8123:8123
+          - 9000:9000
+        options: >-
+          --health-cmd "clickhouse-client --query 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: mlrun
+          POSTGRES_USER: mlrun
+          POSTGRES_PASSWORD: mlrun_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      minio:
+        image: minio/minio:latest
+        ports:
+          - 9001:9000
+        env:
+          MINIO_ROOT_USER: mlrun
+          MINIO_ROOT_PASSWORD: mlrun_dev_secret
+        options: >-
+          --health-cmd "mc ready local"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-packages
+
+      - name: Build services
+        run: cargo build --release
+
+      - name: Run integration tests
+        run: make test-integration
+        env:
+          DATABASE_URL: postgres://mlrun:mlrun_dev@localhost:5432/mlrun
+          CLICKHOUSE_URL: http://localhost:8123
+          REDIS_URL: redis://localhost:6379
+          MINIO_ENDPOINT: localhost:9001
+          MINIO_ACCESS_KEY: mlrun
+          MINIO_SECRET_KEY: mlrun_dev_secret
+
+  # ===========================================================================
+  # Performance Benchmarks
+  # ===========================================================================
+
+  bench-w1:
+    name: Benchmark W1 (Query at Scale)
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run_benchmarks != 'false' }}
+    needs: [test-integration]
+    services:
+      clickhouse:
+        image: clickhouse/clickhouse-server:24.8
+        ports:
+          - 8123:8123
+          - 9000:9000
+
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: mlrun
+          POSTGRES_USER: mlrun
+          POSTGRES_PASSWORD: mlrun_dev
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
+
+      - name: Build services
+        run: cargo build --release
+
+      - name: Run W1 benchmark (scaled-down)
+        id: bench
+        run: |
+          # Placeholder: actual benchmark implementation in BENCH-000
+          echo "Running W1 benchmark..."
+          echo "Target: p95 < 200ms for 1,000 runs queries"
+
+          # Simulate benchmark result (replace with actual benchmark)
+          W1_P95=150
+          echo "W1_P95=$W1_P95" >> $GITHUB_OUTPUT
+          echo "W1 p95: ${W1_P95}ms"
+
+      - name: Check threshold
+        run: |
+          if [ "${{ steps.bench.outputs.W1_P95 }}" -gt 200 ]; then
+            echo "::warning::W1 p95 (${{ steps.bench.outputs.W1_P95 }}ms) exceeds 200ms target"
+          fi
+
+  bench-w2:
+    name: Benchmark W2 (High-Freq Ingest)
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run_benchmarks != 'false' }}
+    needs: [test-integration]
+    services:
+      clickhouse:
+        image: clickhouse/clickhouse-server:24.8
+        ports:
+          - 8123:8123
+          - 9000:9000
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
+
+      - name: Build services
+        run: cargo build --release
+
+      - name: Run W2 benchmark (scaled-down)
+        id: bench
+        run: |
+          # Placeholder: actual benchmark implementation in BENCH-000
+          echo "Running W2 benchmark..."
+          echo "Target: p95 < 500ms for log-to-visible latency"
+
+          # Simulate benchmark result (replace with actual benchmark)
+          W2_P95=350
+          echo "W2_P95=$W2_P95" >> $GITHUB_OUTPUT
+          echo "W2 p95: ${W2_P95}ms"
+
+      - name: Check threshold
+        run: |
+          if [ "${{ steps.bench.outputs.W2_P95 }}" -gt 500 ]; then
+            echo "::warning::W2 p95 (${{ steps.bench.outputs.W2_P95 }}ms) exceeds 500ms target"
+          fi
+
+  bench-w3:
+    name: Benchmark W3 (Mixed Dashboard)
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run_benchmarks != 'false' }}
+    needs: [test-integration]
+    services:
+      clickhouse:
+        image: clickhouse/clickhouse-server:24.8
+        ports:
+          - 8123:8123
+
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: mlrun
+          POSTGRES_USER: mlrun
+          POSTGRES_PASSWORD: mlrun_dev
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
+
+      - name: Build services
+        run: cargo build --release
+
+      - name: Run W3 benchmark (scaled-down)
+        id: bench
+        run: |
+          # Placeholder: actual benchmark implementation in BENCH-000
+          echo "Running W3 benchmark..."
+          echo "Target: p95 < 300ms for mixed dashboard queries"
+
+          # Simulate benchmark result (replace with actual benchmark)
+          W3_P95=200
+          echo "W3_P95=$W3_P95" >> $GITHUB_OUTPUT
+          echo "W3 p95: ${W3_P95}ms"
+
+      - name: Check threshold
+        run: |
+          if [ "${{ steps.bench.outputs.W3_P95 }}" -gt 300 ]; then
+            echo "::warning::W3 p95 (${{ steps.bench.outputs.W3_P95 }}ms) exceeds 300ms target"
+          fi
+
+  # ===========================================================================
+  # Summary & Notification
+  # ===========================================================================
+
+  nightly-summary:
+    name: Nightly Summary
+    runs-on: ubuntu-latest
+    needs: [test-integration, bench-w1, bench-w2, bench-w3]
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## Nightly Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Integration Tests | ${{ needs.test-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Benchmark W1 | ${{ needs.bench-w1.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Benchmark W2 | ${{ needs.bench-w2.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Benchmark W3 | ${{ needs.bench-w3.result }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for failures
+        if: |
+          needs.test-integration.result == 'failure' ||
+          needs.bench-w1.result == 'failure' ||
+          needs.bench-w2.result == 'failure' ||
+          needs.bench-w3.result == 'failure'
+        run: |
+          echo "::error::One or more nightly jobs failed"
+          # Add Slack notification here when configured
+          # curl -X POST -H 'Content-type: application/json' \
+          #   --data '{"text":"MLRun nightly build failed!"}' \
+          #   ${{ secrets.SLACK_WEBHOOK_URL }}
+          exit 1

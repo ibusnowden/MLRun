@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<!--
+    MLRun ClickHouse Configuration
+
+    Optimized for local development with safe resource defaults.
+    For production, review and adjust these settings based on your hardware.
+-->
+<clickhouse>
+    <!-- Logging -->
+    <logger>
+        <level>information</level>
+        <console>true</console>
+        <log>/var/log/clickhouse-server/clickhouse-server.log</log>
+        <errorlog>/var/log/clickhouse-server/clickhouse-server.err.log</errorlog>
+        <size>100M</size>
+        <count>3</count>
+    </logger>
+
+    <!-- Network -->
+    <http_port>8123</http_port>
+    <tcp_port>9000</tcp_port>
+    <listen_host>0.0.0.0</listen_host>
+
+    <!-- Connection limits (safe for local dev) -->
+    <max_connections>100</max_connections>
+    <keep_alive_timeout>3</keep_alive_timeout>
+    <max_concurrent_queries>20</max_concurrent_queries>
+
+    <!-- Memory limits (safe for 4GB+ RAM) -->
+    <!-- max_server_memory_usage: 75% of available RAM, up to 2GB for dev -->
+    <max_server_memory_usage_to_ram_ratio>0.75</max_server_memory_usage_to_ram_ratio>
+    <max_server_memory_usage>2147483648</max_server_memory_usage>
+
+    <!-- Per-query memory limit: 1GB -->
+    <max_memory_usage>1073741824</max_memory_usage>
+
+    <!-- Mark cache for indices: 500MB (default was 5GB) -->
+    <mark_cache_size>536870912</mark_cache_size>
+
+    <!-- Uncompressed cache: 256MB -->
+    <uncompressed_cache_size>268435456</uncompressed_cache_size>
+
+    <!-- Thread limits -->
+    <max_threads>4</max_threads>
+    <max_insert_threads>2</max_insert_threads>
+
+    <!-- Background pool sizes -->
+    <background_pool_size>4</background_pool_size>
+    <background_schedule_pool_size>4</background_schedule_pool_size>
+
+    <!-- Insert settings -->
+    <max_insert_block_size>1048576</max_insert_block_size>
+    <max_partitions_per_insert_block>100</max_partitions_per_insert_block>
+
+    <!-- Storage paths -->
+    <path>/var/lib/clickhouse/</path>
+    <tmp_path>/var/lib/clickhouse/tmp/</tmp_path>
+    <user_files_path>/var/lib/clickhouse/user_files/</user_files_path>
+    <format_schema_path>/var/lib/clickhouse/format_schemas/</format_schema_path>
+
+    <!-- Default database -->
+    <default_database>mlrun</default_database>
+
+    <!-- Merge tree settings for local dev -->
+    <merge_tree>
+        <!-- Parts older than 7 days are candidates for merge -->
+        <old_parts_lifetime>604800</old_parts_lifetime>
+        <!-- Max parts in single merge: keep low for dev -->
+        <max_parts_to_merge_at_once>5</max_parts_to_merge_at_once>
+    </merge_tree>
+
+    <!-- Async metrics collection -->
+    <asynchronous_metrics_update_period_s>60</asynchronous_metrics_update_period_s>
+
+    <!-- Disable telemetry -->
+    <send_crash_reports>
+        <enabled>false</enabled>
+    </send_crash_reports>
+</clickhouse>

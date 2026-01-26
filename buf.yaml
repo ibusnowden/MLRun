@@ -1,0 +1,27 @@
+# buf.yaml - Buf configuration for MLRun protobuf management
+# See: https://buf.build/docs/configuration/v2/buf-yaml
+version: v2
+
+modules:
+  - path: proto
+    name: buf.build/mlrun/mlrun
+
+lint:
+  use:
+    - STANDARD
+    - COMMENTS
+  except:
+    # Allow service names without "Service" suffix since we use it
+    - SERVICE_SUFFIX
+  disallow_comment_ignores: true
+
+breaking:
+  use:
+    - FILE
+  except:
+    # During alpha, allow some breaking changes with careful review
+    []
+
+deps:
+  # Well-known types
+  - buf.build/googleapis/googleapis

@@ -1,0 +1,70 @@
+# Git
+.git
+.gitignore
+
+# Rust
+target/
+<<<<<<< HEAD
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+.turbo/
+=======
+Cargo.lock
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Node.js
+node_modules/
+.next/
+out/
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
+
+# IDE
+.idea/
+.vscode/
+
+<<<<<<< HEAD
+# Docs
+docs/
+*.md
+
+# Misc
+.DS_Store
+*.log
+=======
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Docs and misc
+*.md
+docs/
+bench/
+migrations/
+tests/
+
+# OS
+.DS_Store
+
+# Claude
+.claude/
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)

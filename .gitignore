@@ -1,0 +1,117 @@
+<<<<<<< HEAD
+**/skills.md
+=======
+# Project-specific ignores
+**/skills.md
+**/branches.md
+**/dev.md
+
+# Rust
+/target/
+**/*.rs.bk
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+<<<<<<< HEAD
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+=======
+.venv/
+venv/
+ENV/
+env/
+.eggs/
+*.egg-info/
+*.egg
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Next.js
+.next/
+out/
+.vercel
+.turbo/
+*.tsbuildinfo
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+<<<<<<< HEAD
+
+# Rust
+target/
+Cargo.lock
+
+# Node.js / Next.js
+node_modules/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# OS
+.DS_Store
+=======
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.local.toml
+
+# Logs
+logs/
+*.log
+
+# Docker
+docker-compose.override.yml
+
+# Benchmarks output
+bench/reports/
+bench/output/
+
+# Generated files
+*.generated.*
+proto/**/*.rs
+proto/**/*.py
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/
+>>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
