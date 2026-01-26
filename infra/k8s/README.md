@@ -70,6 +70,15 @@ kubectl apply -k base/
 # Check status
 kubectl get pods -n mlrun
 kubectl get services -n mlrun
+
+# Check migration jobs
+kubectl get jobs -n mlrun
+kubectl logs job/postgres-migrations -n mlrun
+kubectl logs job/clickhouse-migrations -n mlrun
+
+# Re-run migrations after changes
+kubectl delete job/postgres-migrations clickhouse-migrations -n mlrun
+kubectl apply -k base/
 ```
 
 ### 5. Access MLRun
