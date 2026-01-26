@@ -56,11 +56,12 @@ FROM debian:bookworm-slim AS api
 
 RUN apt-get update && apt-get install -y \
     ca-certificates \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/mlrun-api /usr/local/bin/
 
-EXPOSE 3001
+EXPOSE 3001 50051
 ENV RUST_LOG=info
 
 CMD ["mlrun-api"]
