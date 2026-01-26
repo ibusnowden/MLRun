@@ -20,6 +20,7 @@ Note: Works in offline mode if MLRun server is not running.
 
 from __future__ import annotations
 
+import importlib.util
 import sys
 from dataclasses import dataclass
 from typing import Any
@@ -28,7 +29,8 @@ import mlrun
 
 # Check for HuggingFace availability
 try:
-    import torch
+    if importlib.util.find_spec("torch") is None:
+        raise ImportError
     from datasets import load_dataset
     from transformers import (
         AutoModelForSequenceClassification,
@@ -203,10 +205,15 @@ def main() -> None:
         # Log model info
         total_params = sum(p.numel() for p in model.parameters())
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        architecture = (
+            model.config.architectures[0]
+            if model.config.architectures
+            else "unknown"
+        )
         run.log_params({
             "model/total_params": total_params,
             "model/trainable_params": trainable_params,
-            "model/architecture": model.config.architectures[0] if model.config.architectures else "unknown",
+            "model/architecture": architecture,
         })
 
         # Tokenize datasets
@@ -280,7 +287,7 @@ def main() -> None:
                 "final/eval_accuracy": eval_results.get("eval_accuracy", 0),
             })
 
-            print(f"\nTraining complete!")
+            print("\nTraining complete!")
             print(f"  Train loss: {train_result.training_loss:.4f}")
             print(f"  Eval accuracy: {eval_results.get('eval_accuracy', 0):.4f}")
 

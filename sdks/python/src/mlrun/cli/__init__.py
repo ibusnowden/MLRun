@@ -2,10 +2,9 @@
 
 import argparse
 import sys
-from pathlib import Path
 
-from .init import init_project
 from .doctor import doctor
+from .init import init_project
 
 
 def main():

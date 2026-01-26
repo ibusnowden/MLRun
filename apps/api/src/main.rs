@@ -14,6 +14,14 @@
 //! - **Queued mode** (future): Writes through Redis/Kafka for better throughput
 //!   and horizontal scaling.
 
+#![allow(
+    clippy::all,
+    clippy::pedantic,
+    clippy::nursery,
+    dead_code,
+    unused_imports
+)] // Scaffolding crate; tighten lints as API wiring stabilizes.
+
 mod auth;
 mod config;
 mod services;

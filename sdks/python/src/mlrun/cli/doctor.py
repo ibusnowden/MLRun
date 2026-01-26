@@ -1,14 +1,11 @@
 """MLRun doctor command - Check setup and connectivity."""
 
 import os
-import sys
-from pathlib import Path
-from typing import Optional
-import urllib.request
 import urllib.error
-import json
+import urllib.request
+from pathlib import Path
 
-from .init import load_config, CONFIG_FILE
+from .init import CONFIG_FILE, load_config
 
 
 def check_mark(passed: bool) -> str:
@@ -111,7 +108,7 @@ def doctor(verbose: bool = False) -> bool:
         return False
 
 
-def check_api_connectivity(api_url: str) -> tuple[bool, Optional[str]]:
+def check_api_connectivity(api_url: str) -> tuple[bool, str | None]:
     """Check if the API server is reachable.
 
     Args:
