@@ -1,10 +1,8 @@
 """MLRun init command - Initialize a project."""
 
 from pathlib import Path
-from typing import Optional
 
 import yaml
-
 
 CONFIG_FILE = ".mlrun.yaml"
 CONFIG_TEMPLATE = """\
@@ -35,7 +33,7 @@ sdk:
 
 
 def init_project(
-    project_name: Optional[str] = None,
+    project_name: str | None = None,
     api_url: str = "http://localhost:3001",
     force: bool = False,
 ) -> bool:
@@ -115,7 +113,7 @@ def init_project(
     return True
 
 
-def load_config() -> Optional[dict]:
+def load_config() -> dict | None:
     """Load MLRun configuration from .mlrun.yaml.
 
     Returns:

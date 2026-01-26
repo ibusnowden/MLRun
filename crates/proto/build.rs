@@ -1,7 +1,7 @@
-//! Build script for MLRun protobuf code generation.
+//! Build script for `MLRun` protobuf code generation.
 //!
 //! This generates Rust code from the proto files in /proto/mlrun/v1/.
-//! The generated code is placed in OUT_DIR and included via `include!` macro.
+//! The generated code is placed in `OUT_DIR` and included via `include!` macro.
 
 use std::path::PathBuf;
 
@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     // Include paths
-    let includes = &[proto_dir.clone()];
+    let includes = std::slice::from_ref(&proto_dir);
 
     // Tell cargo to rerun if proto files change
     for proto in protos {
