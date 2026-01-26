@@ -1,0 +1,175 @@
+# MLRun Privacy Policy
+
+MLRun is designed with **privacy-first defaults**. Your experiment data stays on your infrastructure, and no information is sent to external services unless you explicitly enable it.
+
+## Core Privacy Principles
+
+1. **Local-First**: All data is stored locally on your infrastructure
+2. **No Outbound Calls**: No network requests to external services by default
+3. **Opt-In Telemetry**: Any telemetry features are disabled by default
+4. **Data Ownership**: You own and control all your experiment data
+
+## Data Storage Locations
+
+When running the default Docker Compose stack, your data is stored in the following Docker volumes:
+
+| Data Type | Storage | Volume | Description |
+|-----------|---------|--------|-------------|
+| Metrics | ClickHouse | `clickhouse-data` | Time-series training metrics (loss, accuracy, etc.) |
+| Metadata | PostgreSQL | `postgres-data` | Projects, runs, parameters, API keys |
+| Artifacts | MinIO | `minio-data` | Model files, datasets, checkpoints |
+| Cache | Redis | `redis-data` | Temporary cache data |
+
+### Default Storage Paths
+
+On a typical Docker installation:
+- Linux: `/var/lib/docker/volumes/`
+- macOS: `~/Library/Containers/com.docker.docker/Data/vms/0/data/docker/volumes/`
+- Windows: `\\wsl$\docker-desktop-data\data\docker\volumes\`
+
+## Data Retention
+
+MLRun applies the following default retention policies:
+
+| Data Type | Default Retention | Configuration |
+|-----------|------------------|---------------|
+| Metrics | 90 days | `MLRUN_METRICS_RETENTION_DAYS` |
+| Artifacts | 365 days | `MLRUN_ARTIFACTS_RETENTION_DAYS` |
+| System Logs | 7 days | `MLRUN_LOGS_RETENTION_DAYS` |
+| Metadata | Forever | Manual deletion |
+
+Set retention to `0` to disable automatic deletion.
+
+## Telemetry Configuration
+
+All telemetry is **disabled by default**. The following toggles are available:
+
+```bash
+# All disabled by default (true = disabled)
+MLRUN_TELEMETRY_DISABLED=true
+MLRUN_CRASH_REPORTING_DISABLED=true
+MLRUN_ANALYTICS_DISABLED=true
+MLRUN_UPDATE_CHECK_DISABLED=true
+
+# Next.js telemetry is also disabled
+NEXT_TELEMETRY_DISABLED=1
+```
+
+### What Would Telemetry Collect?
+
+If you choose to enable telemetry in the future (to help improve MLRun), it would only collect:
+- Aggregate usage statistics (run counts, metric counts)
+- Error reports (stack traces without experiment data)
+- Feature usage patterns
+
+Telemetry would **never** collect:
+- Experiment data (metrics, parameters, artifacts)
+- Model weights or training data
+- API keys or credentials
+- Project names or custom metadata
+
+## Network Isolation
+
+The default Docker Compose setup uses an isolated bridge network (`mlrun-network`). Services communicate internally and only expose the following ports to localhost:
+
+| Port | Service | Access |
+|------|---------|--------|
+| 3000 | UI | `http://localhost:3000` |
+| 3001 | API (HTTP) | `http://localhost:3001` |
+| 50051 | API (gRPC) | `localhost:50051` |
+| 8123 | ClickHouse | `localhost:8123` |
+| 5432 | PostgreSQL | `localhost:5432` |
+| 9001 | MinIO API | `localhost:9001` |
+| 9002 | MinIO Console | `localhost:9002` |
+| 6379 | Redis | `localhost:6379` |
+
+To restrict access further, modify the port bindings in `docker-compose.yml` to bind only to `127.0.0.1`:
+
+```yaml
+ports:
+  - "127.0.0.1:3001:3001"  # Only accessible from localhost
+```
+
+## SDK Privacy
+
+The Python SDK is designed to work completely offline:
+
+```python
+import mlrun
+
+# Configure for offline mode
+mlrun.configure(
+    server_url="http://localhost:3001",  # Local server
+    offline_mode=True,  # Enable offline spool if server unavailable
+)
+```
+
+When `offline_mode=True`:
+- Data is spooled locally if the server is unreachable
+- No network errors interrupt your training
+- Data syncs when the server becomes available
+
+## Data Export
+
+You can export all your data at any time:
+
+```bash
+# PostgreSQL metadata
+docker exec mlrun-postgres pg_dump -U mlrun mlrun > backup.sql
+
+# ClickHouse metrics
+docker exec mlrun-clickhouse clickhouse-client \
+  --user mlrun --password mlrun_dev \
+  --query "SELECT * FROM mlrun.metrics FORMAT JSONEachRow" > metrics.json
+
+# MinIO artifacts
+docker run --rm --network mlrun-network \
+  minio/mc mc mirror minio/mlrun-artifacts ./artifacts/
+```
+
+## Data Deletion
+
+To completely remove all MLRun data:
+
+```bash
+# Stop all services
+docker compose down
+
+# Remove all volumes (DESTRUCTIVE!)
+docker compose down -v
+
+# Or selectively remove specific volumes
+docker volume rm mlrun_clickhouse-data
+docker volume rm mlrun_postgres-data
+docker volume rm mlrun_minio-data
+```
+
+## Security Recommendations
+
+1. **Change default passwords** before deploying:
+   ```bash
+   CLICKHOUSE_PASSWORD=<secure-password>
+   POSTGRES_PASSWORD=<secure-password>
+   MINIO_SECRET_KEY=<secure-password>
+   ```
+
+2. **Generate a secure API key**:
+   ```bash
+   MLRUN_API_KEY=$(openssl rand -hex 32)
+   ```
+
+3. **Disable dev mode in production**:
+   ```bash
+   MLRUN_DEV_MODE=false
+   ```
+
+4. **Use network isolation** in production deployments
+
+5. **Enable TLS** for external access (see deployment docs)
+
+## Questions?
+
+If you have privacy concerns or questions, please:
+- Open an issue on GitHub
+- Review our source code (fully open source)
+- Run MLRun in an air-gapped environment if needed
