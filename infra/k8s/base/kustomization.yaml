@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: mlrun
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - postgres.yaml
+  - clickhouse.yaml
+  - postgres-migrations-job.yaml
+  - clickhouse-migrations-job.yaml
+  - minio.yaml
+  - redis.yaml
+  - api.yaml
+  - ui.yaml
+
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+  app.kubernetes.io/version: "0.1.0"
+
+configMapGenerator:
+  - name: mlrun-postgres-migrations
+    files:
+      - ../../migrations/postgres/001_metadata_schema.sql
+      - ../../migrations/postgres/002_ingest_batches.sql
+  - name: mlrun-clickhouse-migrations
+    files:
+      - ../../migrations/clickhouse/001_metrics_schema.sql
+
+generatorOptions:
+  disableNameSuffixHash: true
