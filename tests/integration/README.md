@@ -9,7 +9,7 @@ End-to-end integration tests for the MLRun API.
 1. Start the API server in dev mode:
    ```bash
    cd apps/api
-   MLRUN_DEV_MODE=true cargo run
+   MLRUN_AUTH_DISABLED=true cargo run
    ```
 
 2. Run the tests:

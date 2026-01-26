@@ -32,5 +32,5 @@ DO $$
 BEGIN
     RAISE NOTICE 'MLRun seed data initialized:';
     RAISE NOTICE '  - Default project: default';
-    RAISE NOTICE '  - Dev API key: mlrun_dev_key_12345 (use MLRUN_DEV_MODE=true)';
+    RAISE NOTICE '  - Dev API key: mlrun_dev_key_12345 (use MLRUN_AUTH_DISABLED=true)';
 END $$;
