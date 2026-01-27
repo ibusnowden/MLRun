@@ -183,7 +183,7 @@ def main() -> None:
 
         # Load dataset
         print("Loading dataset...")
-        dataset = load_dataset(dataset_name, trust_remote_code=True)
+        dataset = load_dataset(dataset_name)
 
         # Use subset for faster demo
         train_dataset = dataset["train"].shuffle(seed=42).select(range(num_train_samples))
