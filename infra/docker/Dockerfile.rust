@@ -26,6 +26,7 @@ COPY crates/proto/build.rs crates/proto/build.rs
 COPY services/ingest/Cargo.toml services/ingest/Cargo.toml
 COPY services/processor/Cargo.toml services/processor/Cargo.toml
 COPY proto proto
+COPY migrations migrations
 
 # Create dummy source files for dependency caching
 RUN mkdir -p apps/api/src crates/proto/src services/ingest/src services/processor/src && \
