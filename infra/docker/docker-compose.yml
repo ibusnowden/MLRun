@@ -149,6 +149,8 @@ services:
       context: ../..
       dockerfile: infra/docker/Dockerfile.rust
       target: api
+      args:
+        RUST_VERSION: ${RUST_VERSION:-1.88}
     container_name: mlrun-api
     ports:
       - "3001:3001"   # HTTP API
