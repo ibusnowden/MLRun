@@ -46,7 +46,7 @@ COPY services/ingest/src services/ingest/src
 COPY services/processor/src services/processor/src
 
 # Touch files to invalidate cache for source changes
-RUN touch apps/api/src/main.rs services/ingest/src/main.rs services/processor/src/main.rs
+RUN touch apps/api/src/main.rs crates/proto/src/lib.rs services/ingest/src/main.rs services/processor/src/main.rs
 
 # Build all binaries
 RUN cargo build --release --workspace
