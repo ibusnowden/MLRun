@@ -39,7 +39,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use tonic::transport::Server as TonicServer;
-use tower_http::cors::CorsLayer;
+use tower_http::{cors::CorsLayer, decompression::RequestDecompressionLayer};
 use tracing::{info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -833,6 +833,7 @@ async fn http_compare_runs(
 
 fn build_http_router(state: AppState) -> Router {
     let cors = CorsLayer::permissive();
+    let decompression = RequestDecompressionLayer::new();
 
     // Routes that require authentication
     let protected_routes = Router::new()
@@ -859,6 +860,7 @@ fn build_http_router(state: AppState) -> Router {
     Router::new()
         .merge(public_routes)
         .merge(protected_routes)
+        .layer(decompression)
         .layer(cors)
         .with_state(state)
 }
