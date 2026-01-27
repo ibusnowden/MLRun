@@ -151,7 +151,7 @@ def main() -> None:
 
     # Configuration
     model_name = "distilbert-base-uncased"
-    dataset_name = "imdb"
+    dataset_name = "stanfordnlp/imdb"  # Full path for reliability
     num_train_samples = 1000  # Use subset for demo
     num_eval_samples = 500
     num_epochs = 1
@@ -183,7 +183,7 @@ def main() -> None:
 
         # Load dataset
         print("Loading dataset...")
-        dataset = load_dataset(dataset_name)
+        dataset = load_dataset(dataset_name, trust_remote_code=True)
 
         # Use subset for faster demo
         train_dataset = dataset["train"].shuffle(seed=42).select(range(num_train_samples))
