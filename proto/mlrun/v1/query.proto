@@ -90,6 +90,7 @@ message RunFilters {
 
   // Filter by created time range
   optional google.protobuf.Timestamp created_after = 4;
+  // Upper bound for created time filter.
   optional google.protobuf.Timestamp created_before = 5;
 
   // Filter by user/creator
@@ -116,14 +117,22 @@ message ParameterFilter {
 
 // Comparison operators for filtering.
 enum ComparisonOp {
+  // Unspecified comparison operator.
   COMPARISON_OP_UNSPECIFIED = 0;
-  COMPARISON_OP_EQ = 1;    // Equals
-  COMPARISON_OP_NE = 2;    // Not equals
-  COMPARISON_OP_GT = 3;    // Greater than (numeric)
-  COMPARISON_OP_GE = 4;    // Greater than or equal
-  COMPARISON_OP_LT = 5;    // Less than
-  COMPARISON_OP_LE = 6;    // Less than or equal
-  COMPARISON_OP_CONTAINS = 7;  // String contains
+  // Equals.
+  COMPARISON_OP_EQ = 1;
+  // Not equals.
+  COMPARISON_OP_NE = 2;
+  // Greater than (numeric).
+  COMPARISON_OP_GT = 3;
+  // Greater than or equal.
+  COMPARISON_OP_GE = 4;
+  // Less than.
+  COMPARISON_OP_LT = 5;
+  // Less than or equal.
+  COMPARISON_OP_LE = 6;
+  // String contains.
+  COMPARISON_OP_CONTAINS = 7;
 }
 
 // Sort options for run listing.
@@ -137,18 +146,26 @@ message RunSort {
 
 // Fields available for sorting.
 enum RunSortField {
+  // Unspecified sort field.
   RUN_SORT_FIELD_UNSPECIFIED = 0;
-  RUN_SORT_FIELD_CREATED_AT = 1;   // Default
+  // Sort by creation time (default).
+  RUN_SORT_FIELD_CREATED_AT = 1;
+  // Sort by run name.
   RUN_SORT_FIELD_NAME = 2;
+  // Sort by run status.
   RUN_SORT_FIELD_STATUS = 3;
+  // Sort by run duration.
   RUN_SORT_FIELD_DURATION = 4;
 }
 
 // Sort direction.
 enum SortDirection {
+  // Unspecified sort direction.
   SORT_DIRECTION_UNSPECIFIED = 0;
+  // Ascending order.
   SORT_DIRECTION_ASC = 1;
-  SORT_DIRECTION_DESC = 2;  // Default
+  // Descending order (default).
+  SORT_DIRECTION_DESC = 2;
 }
 
 // Response from ListRuns.
@@ -208,7 +225,9 @@ message Run {
 
   // Timestamps
   google.protobuf.Timestamp created_at = 13;
+  // Timestamp when the run started.
   google.protobuf.Timestamp started_at = 14;
+  // Timestamp when the run finished.
   google.protobuf.Timestamp finished_at = 15;
 
   // Duration in seconds (null if still running)
@@ -216,6 +235,7 @@ message Run {
 
   // Counts
   int64 metric_count = 17;
+  // Total artifacts associated with the run.
   int64 artifact_count = 18;
 }
 
@@ -253,10 +273,12 @@ message GetMetricsRequest {
 
   // Step range filter
   optional int64 min_step = 3;
+  // Upper bound for step range filter.
   optional int64 max_step = 4;
 
   // Time range filter
   optional google.protobuf.Timestamp min_time = 5;
+  // Upper bound for time range filter.
   optional google.protobuf.Timestamp max_time = 6;
 
   // Maximum points to return per metric per run (default 1000, max 10000)
@@ -272,12 +294,18 @@ message GetMetricsRequest {
 // Downsampling methods.
 // See: /docs/spec/query.md#downsampling-methods
 enum DownsampleMethod {
+  // Unspecified downsampling method.
   DOWNSAMPLE_METHOD_UNSPECIFIED = 0;
-  DOWNSAMPLE_METHOD_LTTB = 1;      // Largest-Triangle-Three-Buckets (default, preserves shape)
-  DOWNSAMPLE_METHOD_MIN_MAX = 2;   // Keep min/max per bucket (good for detecting extremes)
-  DOWNSAMPLE_METHOD_AVERAGE = 3;   // Average per bucket
-  DOWNSAMPLE_METHOD_FIRST = 4;     // First point per bucket
-  DOWNSAMPLE_METHOD_LAST = 5;      // Last point per bucket
+  // Largest-Triangle-Three-Buckets (default, preserves shape).
+  DOWNSAMPLE_METHOD_LTTB = 1;
+  // Keep min/max per bucket (good for detecting extremes).
+  DOWNSAMPLE_METHOD_MIN_MAX = 2;
+  // Average per bucket.
+  DOWNSAMPLE_METHOD_AVERAGE = 3;
+  // First point per bucket.
+  DOWNSAMPLE_METHOD_FIRST = 4;
+  // Last point per bucket.
+  DOWNSAMPLE_METHOD_LAST = 5;
 }
 
 // Response from GetMetrics.
@@ -315,10 +343,15 @@ message MetricSeries {
 
 // Statistics for a metric series.
 message MetricStats {
+  // Minimum value in the series.
   double min = 1;
+  // Maximum value in the series.
   double max = 2;
+  // Mean value in the series.
   double mean = 3;
+  // Last value in the series.
   double last = 4;
+  // Total number of points.
   int64 count = 5;
 }
 
@@ -346,12 +379,16 @@ message CompareRunsRequest {
 // Alignment modes for comparing runs.
 // See: /docs/spec/query.md#alignment-modes
 enum AlignmentMode {
+  // Unspecified alignment mode.
   ALIGNMENT_MODE_UNSPECIFIED = 0;
-  ALIGNMENT_MODE_STEP = 1;           // Align by step number (default)
-  ALIGNMENT_MODE_RELATIVE_TIME = 2;  // Align by time since run start
-  ALIGNMENT_MODE_ABSOLUTE_TIME = 3;  // Align by wall-clock time
-  // Align by % progress (0-100).
-  ALIGNMENT_MODE_PROGRESS = 4;       // Align by % progress (0-100)
+  // Align by step number (default).
+  ALIGNMENT_MODE_STEP = 1;
+  // Align by time since run start.
+  ALIGNMENT_MODE_RELATIVE_TIME = 2;
+  // Align by wall-clock time.
+  ALIGNMENT_MODE_ABSOLUTE_TIME = 3;
+  // Align by percent progress (0-100).
+  ALIGNMENT_MODE_PROGRESS = 4;
 }
 
 // Response from CompareRuns.

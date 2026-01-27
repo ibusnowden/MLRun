@@ -98,15 +98,24 @@ message Tag {
 
 // Artifact type classification.
 enum ArtifactType {
+  // Unspecified artifact type.
   ARTIFACT_TYPE_UNSPECIFIED = 0;
-  ARTIFACT_TYPE_MODEL = 1;       // Model checkpoints, weights
-  ARTIFACT_TYPE_DATASET = 2;     // Datasets, data samples
-  ARTIFACT_TYPE_IMAGE = 3;       // Images, visualizations
-  ARTIFACT_TYPE_AUDIO = 4;       // Audio files
-  ARTIFACT_TYPE_VIDEO = 5;       // Video files
-  ARTIFACT_TYPE_TABLE = 6;       // Tabular data (CSV, Parquet)
-  ARTIFACT_TYPE_CODE = 7;        // Source code, scripts
-  ARTIFACT_TYPE_OTHER = 99;      // Other artifacts
+  // Model checkpoints, weights.
+  ARTIFACT_TYPE_MODEL = 1;
+  // Datasets, data samples.
+  ARTIFACT_TYPE_DATASET = 2;
+  // Images, visualizations.
+  ARTIFACT_TYPE_IMAGE = 3;
+  // Audio files.
+  ARTIFACT_TYPE_AUDIO = 4;
+  // Video files.
+  ARTIFACT_TYPE_VIDEO = 5;
+  // Tabular data (CSV, Parquet).
+  ARTIFACT_TYPE_TABLE = 6;
+  // Source code, scripts.
+  ARTIFACT_TYPE_CODE = 7;
+  // Other artifacts.
+  ARTIFACT_TYPE_OTHER = 99;
 }
 
 // Metadata for an artifact.
@@ -140,12 +149,18 @@ message ArtifactMetadata {
 
 // Run lifecycle status.
 enum RunStatus {
+  // Unspecified run status.
   RUN_STATUS_UNSPECIFIED = 0;
-  RUN_STATUS_RUNNING = 1;    // Run is actively logging data
-  RUN_STATUS_FINISHED = 2;   // Run completed successfully
-  RUN_STATUS_FAILED = 3;     // Run failed with error
-  RUN_STATUS_CRASHED = 4;    // Run crashed (detected via heartbeat timeout)
-  RUN_STATUS_KILLED = 5;     // Run was manually terminated
+  // Run is actively logging data.
+  RUN_STATUS_RUNNING = 1;
+  // Run completed successfully.
+  RUN_STATUS_FINISHED = 2;
+  // Run failed with error.
+  RUN_STATUS_FAILED = 3;
+  // Run crashed (detected via heartbeat timeout).
+  RUN_STATUS_CRASHED = 4;
+  // Run was manually terminated.
+  RUN_STATUS_KILLED = 5;
 }
 
 // =============================================================================
@@ -195,9 +210,12 @@ message GpuInfo {
 // Error severity classification.
 // See: /docs/spec/ingest.md#warnings-vs-errors
 enum ErrorSeverity {
+  // Unspecified severity.
   ERROR_SEVERITY_UNSPECIFIED = 0;
-  ERROR_SEVERITY_WARNING = 1;   // Degraded operation, data may be partial
-  ERROR_SEVERITY_ERROR = 2;     // Hard failure, request rejected
+  // Degraded operation, data may be partial.
+  ERROR_SEVERITY_WARNING = 1;
+  // Hard failure, request rejected.
+  ERROR_SEVERITY_ERROR = 2;
 }
 
 // Detailed error information.

@@ -17,8 +17,8 @@ use mlrun_proto::mlrun::v1::{
     CreateArtifactUploadRequest, CreateArtifactUploadResponse, FinalizeArtifactUploadRequest,
     FinalizeArtifactUploadResponse, FinishRunRequest, FinishRunResponse, HeartbeatRequest,
     HeartbeatResponse, InitRunRequest, InitRunResponse, LogMetricsRequest, LogMetricsResponse,
-    LogParamsRequest, LogParamsResponse, LogTagsRequest, LogTagsResponse, RunId, RunStatus,
-    ingest_service_server::IngestService,
+    LogMetricsStreamRequest, LogMetricsStreamResponse, LogParamsRequest, LogParamsResponse,
+    LogTagsRequest, LogTagsResponse, RunId, RunStatus, ingest_service_server::IngestService,
 };
 
 /// In-memory run state for alpha (will be replaced by PostgreSQL in STO-002).
@@ -238,14 +238,15 @@ impl IngestService for IngestServiceImpl {
     /// Log metrics as a bidirectional stream.
     async fn log_metrics_stream(
         &self,
-        _request: Request<tonic::Streaming<LogMetricsRequest>>,
+        _request: Request<tonic::Streaming<LogMetricsStreamRequest>>,
     ) -> Result<Response<Self::LogMetricsStreamStream>, Status> {
         // Streaming will be implemented in a future iteration
         Err(Status::unimplemented("Streaming not yet implemented"))
     }
 
-    type LogMetricsStreamStream =
-        std::pin::Pin<Box<dyn futures::Stream<Item = Result<LogMetricsResponse, Status>> + Send>>;
+    type LogMetricsStreamStream = std::pin::Pin<
+        Box<dyn futures::Stream<Item = Result<LogMetricsStreamResponse, Status>> + Send>,
+    >;
 
     /// Log parameters.
     #[instrument(skip(self, request), fields(run_id, param_count))]

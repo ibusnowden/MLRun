@@ -30,7 +30,7 @@ service IngestService {
 
   // Log metrics as a bidirectional stream for maximum throughput.
   // Client sends batches, server acknowledges with batch_ids.
-  rpc LogMetricsStream(stream LogMetricsRequest) returns (stream LogMetricsResponse);
+  rpc LogMetricsStream(stream LogMetricsStreamRequest) returns (stream LogMetricsStreamResponse);
 
   // Log parameters (hyperparameters, config). Idempotent per name.
   rpc LogParams(LogParamsRequest) returns (LogParamsResponse);
@@ -162,6 +162,22 @@ message LogMetricsResponse {
 
   // Server timestamp for latency tracking
   google.protobuf.Timestamp server_time = 4;
+}
+
+// =============================================================================
+// LogMetricsStream
+// =============================================================================
+
+// Streamed request to log a batch of metrics.
+message LogMetricsStreamRequest {
+  // Batch payload (same shape as LogMetricsRequest).
+  LogMetricsRequest batch = 1;
+}
+
+// Streamed response for a metrics batch.
+message LogMetricsStreamResponse {
+  // Batch response (same shape as LogMetricsResponse).
+  LogMetricsResponse response = 1;
 }
 
 // =============================================================================
