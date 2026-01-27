@@ -4,20 +4,6 @@
 
 # Rust
 target/
-<<<<<<< HEAD
-
-# Python
-.venv/
-__pycache__/
-*.pyc
-*.egg-info/
-
-# Node
-node_modules/
-.next/
-.turbo/
-=======
-Cargo.lock
 
 # Python
 __pycache__/
@@ -35,21 +21,12 @@ build/
 node_modules/
 .next/
 out/
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
+.turbo/
 
 # IDE
 .idea/
 .vscode/
 
-<<<<<<< HEAD
-# Docs
-docs/
-*.md
-
-# Misc
-.DS_Store
-*.log
-=======
 # Environment
 .env
 .env.local
@@ -59,14 +36,13 @@ docs/
 *.md
 docs/
 bench/
-migrations/
-tests/
 
 # OS
 .DS_Store
 
 # Claude
 .claude/
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 
+# Keep lockfiles and migrations in build context
 !Cargo.lock
+!migrations/
