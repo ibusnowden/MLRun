@@ -36,7 +36,8 @@ services:
       CLICKHOUSE_USER: mlrun
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-mlrun_dev}
     healthcheck:
-      test: ["CMD", "clickhouse-client", "--user", "mlrun", "--password", "${CLICKHOUSE_PASSWORD:-mlrun_dev}", "--query", "SELECT 1"]
+      # Use default user for healthcheck (always exists, no password required)
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
       interval: 10s
       timeout: 5s
       retries: 10
