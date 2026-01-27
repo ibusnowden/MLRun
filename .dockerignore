@@ -68,3 +68,5 @@ tests/
 # Claude
 .claude/
 >>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
+
+!Cargo.lock
