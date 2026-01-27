@@ -266,6 +266,9 @@ trainer.add_callback(TrackCallback())
 from mlrun.integrations import TrackOptunaCallback
 study.optimize(objective, callbacks=[TrackOptunaCallback()])
 ```
+## Get to know about the repo more...
+
+https://deepwiki.com/badge-maker?url=https%3A%2F%2Fdeepwiki.com%2Fibusnowden%2FMLRun
 
 ## Contributing
 
