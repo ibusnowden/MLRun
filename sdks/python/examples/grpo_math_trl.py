@@ -439,17 +439,20 @@ def main():
 
         # GRPO specific
         num_generations=config.num_generations,
-        max_new_tokens=config.max_new_tokens,
-        max_length=config.max_length,
+        max_completion_length=config.max_new_tokens,
+        max_prompt_length=config.max_length,
 
-        # DeepSeek math style - no KL
-        kl_coef=config.kl_coeff,
-        cliprange=config.clip_range,
+        # DeepSeek math style - no KL (beta=0)
+        beta=config.kl_coeff,  # KL coefficient
+        epsilon=config.clip_range,  # PPO clip range
 
         # Generation
         temperature=config.temperature,
         top_p=config.top_p,
         top_k=config.top_k,
+
+        # Loss type (dapo = DAPO-style active sampling)
+        loss_type="grpo",
 
         # Logging
         logging_steps=1,
