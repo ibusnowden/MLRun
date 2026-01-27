@@ -209,14 +209,14 @@ class MLRunGRPOCallback(TrainerCallback):
                 metrics_to_log[clean_key] = value
 
         if metrics_to_log:
-            self.run.log_metrics(metrics_to_log, step=self.step)
+            self.run.log(metrics_to_log, step=self.step)
 
     def log_rewards(self, rewards: list[float], correct_ratio: float) -> None:
         """Log reward statistics."""
         self.rewards_history.extend(rewards)
         self.correct_history.append(correct_ratio)
 
-        self.run.log_metrics({
+        self.run.log({
             "reward_mean": sum(rewards) / len(rewards) if rewards else 0,
             "reward_std": self._std(rewards),
             "reward_max": max(rewards) if rewards else 0,
@@ -394,166 +394,165 @@ def main():
     print()
 
     # Initialize MLRun
-    with mlrun.start_run(
+    run = mlrun.init(
         project="grpo-math",
         name=f"grpo-trl-{config.model_name.split('/')[-1]}",
-        tags=["grpo", "trl", "math", "gsm8k"],
-    ) as run:
-        print(f"MLRun Run ID: {run.run_id}")
-        print(f"Offline mode: {run.offline}")
-        print()
-
-        # Log configuration
-        run.log_params(config.to_dict())
-        run.log_tags({
+        tags={
             "framework": "trl",
             "task": "math",
             "dataset": "gsm8k",
             "model_family": "qwen3",
+        },
+    )
+    print(f"MLRun Run ID: {run.run_id}")
+    print(f"Offline mode: {run.is_offline}")
+    print()
+
+    # Log configuration
+    run.log_params(config.to_dict())
+
+    # Setup model and tokenizer
+    model, tokenizer = setup_model_and_tokenizer(config)
+
+    # Prepare dataset
+    train_data, eval_data = prepare_gsm8k_dataset(
+        tokenizer,
+        num_train=config.num_train_samples,
+        num_eval=config.num_eval_samples,
+    )
+
+    # Create reward function
+    reward_fn = create_reward_function(train_data)
+
+    # Create MLRun callback
+    mlrun_callback = MLRunGRPOCallback(run=run)
+
+    # Configure GRPO
+    grpo_config = GRPOConfig(
+        output_dir="./grpo_output",
+
+        # Training
+        max_steps=config.max_steps,
+        per_device_train_batch_size=config.batch_size,
+        gradient_accumulation_steps=config.gradient_accumulation_steps,
+        learning_rate=config.learning_rate,
+
+        # GRPO specific
+        num_generations=config.num_generations,
+        max_new_tokens=config.max_new_tokens,
+        max_length=config.max_length,
+
+        # DeepSeek math style - no KL
+        kl_coef=config.kl_coeff,
+        cliprange=config.clip_range,
+
+        # Generation
+        temperature=config.temperature,
+        top_p=config.top_p,
+        top_k=config.top_k,
+
+        # Logging
+        logging_steps=1,
+        report_to="none",  # We use MLRun instead
+
+        # Misc
+        seed=42,
+        remove_unused_columns=False,
+    )
+
+    # Prepare training data in TRL format
+    # TRL expects a dataset with 'prompt' column
+    from datasets import Dataset
+    train_dataset = Dataset.from_list([{"prompt": d["prompt"]} for d in train_data])
+
+    # Create trainer
+    print("\nInitializing GRPOTrainer...")
+    trainer = GRPOTrainer(
+        model=model,
+        args=grpo_config,
+        train_dataset=train_dataset,
+        processing_class=tokenizer,
+        reward_funcs=reward_fn,
+        callbacks=[mlrun_callback],
+    )
+
+    # Train
+    print("\nStarting GRPO training...")
+    start_time = time.time()
+
+    try:
+        train_result = trainer.train()
+        training_time = time.time() - start_time
+
+        # Log final metrics
+        run.log_params({
+            "final/training_time_seconds": training_time,
+            "final/total_steps": trainer.state.global_step,
         })
 
-        # Setup model and tokenizer
-        model, tokenizer = setup_model_and_tokenizer(config)
+        if hasattr(train_result, "metrics"):
+            for key, value in train_result.metrics.items():
+                if isinstance(value, (int, float)):
+                    run.log_params({f"final/{key}": value})
 
-        # Prepare dataset
-        train_data, eval_data = prepare_gsm8k_dataset(
-            tokenizer,
-            num_train=config.num_train_samples,
-            num_eval=config.num_eval_samples,
-        )
+        print(f"\nTraining completed in {training_time:.2f}s")
+        print(f"Total steps: {trainer.state.global_step}")
 
-        # Create reward function
-        reward_fn = create_reward_function(train_data)
+    except KeyboardInterrupt:
+        print("\nTraining interrupted by user")
+        run.log_tags({"status": "interrupted"})
+    except Exception as e:
+        print(f"\nTraining failed: {e}")
+        run.log_tags({"status": "failed", "error": str(e)})
+        raise
+    finally:
+        run.finish()
 
-        # Create MLRun callback
-        mlrun_callback = MLRunGRPOCallback(run=run)
+    # Evaluation
+    print("\nRunning evaluation...")
+    correct = 0
+    total = 0
 
-        # Configure GRPO
-        grpo_config = GRPOConfig(
-            output_dir="./grpo_output",
+    model.eval()
+    with torch.no_grad():
+        for example in eval_data[:5]:  # Quick eval on subset
+            inputs = tokenizer(
+                example["prompt"],
+                return_tensors="pt",
+                truncation=True,
+                max_length=config.max_length,
+            )
+            inputs = {k: v.to(model.device) for k, v in inputs.items()}
 
-            # Training
-            max_steps=config.max_steps,
-            per_device_train_batch_size=config.batch_size,
-            gradient_accumulation_steps=config.gradient_accumulation_steps,
-            learning_rate=config.learning_rate,
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=config.max_new_tokens,
+                temperature=config.temperature,
+                top_p=config.top_p,
+                do_sample=True,
+                pad_token_id=tokenizer.pad_token_id,
+            )
 
-            # GRPO specific
-            num_generations=config.num_generations,
-            max_new_tokens=config.max_new_tokens,
-            max_length=config.max_length,
+            completion = tokenizer.decode(
+                outputs[0][inputs["input_ids"].shape[1]:],
+                skip_special_tokens=True,
+            )
 
-            # DeepSeek math style - no KL
-            kl_coef=config.kl_coeff,
-            cliprange=config.clip_range,
+            reward = compute_reward([completion], example["answer"])[0]
+            if reward > 0.5:
+                correct += 1
+            total += 1
 
-            # Generation
-            temperature=config.temperature,
-            top_p=config.top_p,
-            top_k=config.top_k,
+            print(f"  Q: {example['prompt'][:50]}...")
+            print(f"  A: {completion[:100]}...")
+            print(f"  Reward: {reward}")
+            print()
 
-            # Logging
-            logging_steps=1,
-            report_to="none",  # We use MLRun instead
+    eval_accuracy = correct / total if total > 0 else 0
+    print(f"Evaluation accuracy: {eval_accuracy:.2%} ({correct}/{total})")
 
-            # Misc
-            seed=42,
-            remove_unused_columns=False,
-        )
-
-        # Prepare training data in TRL format
-        # TRL expects a dataset with 'prompt' column
-        from datasets import Dataset
-        train_dataset = Dataset.from_list([{"prompt": d["prompt"]} for d in train_data])
-
-        # Create trainer
-        print("\nInitializing GRPOTrainer...")
-        trainer = GRPOTrainer(
-            model=model,
-            args=grpo_config,
-            train_dataset=train_dataset,
-            processing_class=tokenizer,
-            reward_funcs=reward_fn,
-            callbacks=[mlrun_callback],
-        )
-
-        # Train
-        print("\nStarting GRPO training...")
-        start_time = time.time()
-
-        try:
-            train_result = trainer.train()
-            training_time = time.time() - start_time
-
-            # Log final metrics
-            run.log_params({
-                "final/training_time_seconds": training_time,
-                "final/total_steps": trainer.state.global_step,
-            })
-
-            if hasattr(train_result, "metrics"):
-                for key, value in train_result.metrics.items():
-                    if isinstance(value, (int, float)):
-                        run.log_params({f"final/{key}": value})
-
-            print(f"\nTraining completed in {training_time:.2f}s")
-            print(f"Total steps: {trainer.state.global_step}")
-
-        except KeyboardInterrupt:
-            print("\nTraining interrupted by user")
-            run.log_tags({"status": "interrupted"})
-        except Exception as e:
-            print(f"\nTraining failed: {e}")
-            run.log_tags({"status": "failed", "error": str(e)})
-            raise
-
-        # Evaluation
-        print("\nRunning evaluation...")
-        correct = 0
-        total = 0
-
-        model.eval()
-        with torch.no_grad():
-            for example in eval_data[:5]:  # Quick eval on subset
-                inputs = tokenizer(
-                    example["prompt"],
-                    return_tensors="pt",
-                    truncation=True,
-                    max_length=config.max_length,
-                )
-                inputs = {k: v.to(model.device) for k, v in inputs.items()}
-
-                outputs = model.generate(
-                    **inputs,
-                    max_new_tokens=config.max_new_tokens,
-                    temperature=config.temperature,
-                    top_p=config.top_p,
-                    do_sample=True,
-                    pad_token_id=tokenizer.pad_token_id,
-                )
-
-                completion = tokenizer.decode(
-                    outputs[0][inputs["input_ids"].shape[1]:],
-                    skip_special_tokens=True,
-                )
-
-                reward = compute_reward([completion], example["answer"])[0]
-                if reward > 0.5:
-                    correct += 1
-                total += 1
-
-                print(f"  Q: {example['prompt'][:50]}...")
-                print(f"  A: {completion[:100]}...")
-                print(f"  Reward: {reward}")
-                print()
-
-        eval_accuracy = correct / total if total > 0 else 0
-        run.log_metrics({"eval/accuracy": eval_accuracy}, step=config.max_steps)
-        print(f"Evaluation accuracy: {eval_accuracy:.2%} ({correct}/{total})")
-
-        run.log_tags({"status": "completed"})
-        print("\nRun completed!")
-        print(f"View results at: http://localhost:3000/runs/{run.run_id}")
+    print("\nRun completed!")
+    print(f"View results at: http://localhost:3000/runs/{run.run_id}")
 
 
 if __name__ == "__main__":
