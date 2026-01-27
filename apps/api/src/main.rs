@@ -39,6 +39,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use tonic::transport::Server as TonicServer;
+use tower_http::cors::CorsLayer;
 use tracing::{info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -349,6 +350,22 @@ async fn http_ingest_batch(
         .filter(|m| accepted_metrics.contains(&m.name))
         .count();
     let accepted_tag_count = accepted_tags.len();
+
+    if accepted_metric_count > 0 {
+        let mut metrics_store = state.store.metrics.write().await;
+        let run_metrics = metrics_store
+            .entry(req.run_id.clone())
+            .or_insert_with(services::RunMetrics::new);
+
+        for metric in req.metrics.iter().filter(|m| accepted_metrics.contains(&m.name)) {
+            run_metrics.add_point(services::MetricPoint {
+                name: metric.name.clone(),
+                step: metric.step,
+                value: metric.value,
+                timestamp: metric.timestamp,
+            });
+        }
+    }
 
     run.metrics_count += accepted_metric_count as u64;
     run.params_count += param_count as u64;
@@ -815,6 +832,8 @@ async fn http_compare_runs(
 // =============================================================================
 
 fn build_http_router(state: AppState) -> Router {
+    let cors = CorsLayer::permissive();
+
     // Routes that require authentication
     let protected_routes = Router::new()
         // SDK HTTP transport endpoints (ingestion)
@@ -840,6 +859,7 @@ fn build_http_router(state: AppState) -> Router {
     Router::new()
         .merge(public_routes)
         .merge(protected_routes)
+        .layer(cors)
         .with_state(state)
 }
 
