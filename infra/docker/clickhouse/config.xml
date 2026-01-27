@@ -21,6 +21,13 @@
     <tcp_port>9000</tcp_port>
     <listen_host>0.0.0.0</listen_host>
 
+    <!-- Use static users.xml only (avoid persisted user directory conflicts) -->
+    <user_directories replace="1">
+        <users_xml>
+            <path>/etc/clickhouse-server/users.d/users.xml</path>
+        </users_xml>
+    </user_directories>
+
     <!-- Connection limits (safe for local dev) -->
     <max_connections>100</max_connections>
     <keep_alive_timeout>3</keep_alive_timeout>
@@ -31,26 +38,15 @@
     <max_server_memory_usage_to_ram_ratio>0.75</max_server_memory_usage_to_ram_ratio>
     <max_server_memory_usage>2147483648</max_server_memory_usage>
 
-    <!-- Per-query memory limit: 1GB -->
-    <max_memory_usage>1073741824</max_memory_usage>
-
     <!-- Mark cache for indices: 500MB (default was 5GB) -->
     <mark_cache_size>536870912</mark_cache_size>
 
     <!-- Uncompressed cache: 256MB -->
     <uncompressed_cache_size>268435456</uncompressed_cache_size>
 
-    <!-- Thread limits -->
-    <max_threads>4</max_threads>
-    <max_insert_threads>2</max_insert_threads>
-
     <!-- Background pool sizes -->
     <background_pool_size>4</background_pool_size>
     <background_schedule_pool_size>4</background_schedule_pool_size>
-
-    <!-- Insert settings -->
-    <max_insert_block_size>1048576</max_insert_block_size>
-    <max_partitions_per_insert_block>100</max_partitions_per_insert_block>
 
     <!-- Storage paths -->
     <path>/var/lib/clickhouse/</path>
@@ -67,6 +63,10 @@
         <old_parts_lifetime>604800</old_parts_lifetime>
         <!-- Max parts in single merge: keep low for dev -->
         <max_parts_to_merge_at_once>5</max_parts_to_merge_at_once>
+        <!-- Keep mutation pool constraints aligned with background_pool_size -->
+        <number_of_free_entries_in_pool_to_execute_mutation>4</number_of_free_entries_in_pool_to_execute_mutation>
+        <!-- Keep optimize pool constraints aligned with background_pool_size -->
+        <number_of_free_entries_in_pool_to_execute_optimize_entire_partition>4</number_of_free_entries_in_pool_to_execute_optimize_entire_partition>
     </merge_tree>
 
     <!-- Async metrics collection -->
