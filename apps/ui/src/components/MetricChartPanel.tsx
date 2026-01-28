@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { api, MetricSeries } from '@/lib/api';
 import { UPlotChart } from '@/components/charts/UPlotChart';
 import { ChartControls } from '@/components/charts/ChartControls';
@@ -202,8 +202,8 @@ export function MetricChartPanel({ runId, darkTheme = true }: MetricChartPanelPr
             {/* Summary stats */}
             <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
               {series.slice(0, 1).map((s) => (
-                <>
-                  <div key={`${s.name}-min`} className={`rounded-lg p-3 ${
+                <React.Fragment key={s.name}>
+                  <div className={`rounded-lg p-3 ${
                     darkTheme ? 'bg-[#0d1117]' : 'bg-gray-50'
                   }`}>
                     <div className={mutedTextClass}>Min ({s.name})</div>
@@ -211,7 +211,7 @@ export function MetricChartPanel({ runId, darkTheme = true }: MetricChartPanelPr
                       {Math.min(...s.points.map((p) => p.min)).toFixed(4)}
                     </div>
                   </div>
-                  <div key={`${s.name}-max`} className={`rounded-lg p-3 ${
+                  <div className={`rounded-lg p-3 ${
                     darkTheme ? 'bg-[#0d1117]' : 'bg-gray-50'
                   }`}>
                     <div className={mutedTextClass}>Max ({s.name})</div>
@@ -219,7 +219,7 @@ export function MetricChartPanel({ runId, darkTheme = true }: MetricChartPanelPr
                       {Math.max(...s.points.map((p) => p.max)).toFixed(4)}
                     </div>
                   </div>
-                  <div key={`${s.name}-last`} className={`rounded-lg p-3 ${
+                  <div className={`rounded-lg p-3 ${
                     darkTheme ? 'bg-[#0d1117]' : 'bg-gray-50'
                   }`}>
                     <div className={mutedTextClass}>Last ({s.name})</div>
@@ -229,7 +229,7 @@ export function MetricChartPanel({ runId, darkTheme = true }: MetricChartPanelPr
                         : '-'}
                     </div>
                   </div>
-                </>
+                </React.Fragment>
               ))}
             </div>
           </div>
