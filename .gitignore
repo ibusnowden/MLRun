@@ -115,3 +115,11 @@ Thumbs.db
 # Claude
 .claude/
 >>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
+
+# Training outputs
+grpo_output/
+results/
+*.safetensors
+*.pt
+*.pth
+*.bin
