@@ -59,13 +59,19 @@ export default function RunDetailPage() {
     );
   }
 
+  // Dark theme enabled by default
+  const darkTheme = true;
+  const bgClass = darkTheme ? 'bg-[#0d1117]' : 'bg-gray-50';
+  const textClass = darkTheme ? 'text-gray-300' : 'text-gray-600';
+  const hoverTextClass = darkTheme ? 'hover:text-white' : 'hover:text-gray-900';
+
   return (
-    <main className="min-h-screen p-8">
+    <main className={`min-h-screen p-8 ${bgClass}`}>
       <div className="max-w-7xl mx-auto">
         {/* Back button */}
         <button
           onClick={() => router.push('/')}
-          className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-1"
+          className={`mb-4 ${textClass} ${hoverTextClass} flex items-center gap-1 transition-colors`}
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -74,16 +80,20 @@ export default function RunDetailPage() {
         </button>
 
         {/* Run Header */}
-        <RunHeader run={run} />
+        <RunHeader run={run} darkTheme={darkTheme} />
 
         {/* Metrics Chart */}
-        <MetricChartPanel runId={runId} />
+        <MetricChartPanel runId={runId} darkTheme={darkTheme} />
 
         {/* Parameters Section */}
         {run.params_count > 0 && (
-          <div className="bg-white rounded-xl shadow-sm p-6 mt-6">
-            <h2 className="text-xl font-semibold mb-4">Parameters</h2>
-            <div className="text-gray-500 text-sm">
+          <div className={`rounded-xl shadow-sm p-6 mt-6 ${
+            darkTheme ? 'bg-[#161b22] border border-gray-800' : 'bg-white'
+          }`}>
+            <h2 className={`text-xl font-semibold mb-4 ${darkTheme ? 'text-gray-200' : 'text-gray-900'}`}>
+              Parameters
+            </h2>
+            <div className={`text-sm ${darkTheme ? 'text-gray-400' : 'text-gray-500'}`}>
               {run.params_count} parameters logged
               <span className="ml-2 text-xs">(detail view coming soon)</span>
             </div>
