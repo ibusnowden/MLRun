@@ -41,6 +41,7 @@ from hyperspherical import hyperspherical_descent
 
 # Import MLRun
 import mlrun
+from system_metrics import get_system_metrics, get_device_info
 
 
 def get_device():
@@ -218,6 +219,9 @@ def train(args, run):
         'device': str(device),
     })
 
+    # Log device/system info
+    run.log_params(get_device_info())
+
     for epoch in range(args.epochs):
         model.train()
         epoch_loss = 0.0
@@ -290,6 +294,9 @@ def train(args, run):
 
                 # Learning rate
                 metrics['lr'] = lr
+
+                # System metrics (GPU, CPU, memory)
+                metrics.update(get_system_metrics())
 
                 # Log to MLRun
                 run.log(metrics, step=global_step)

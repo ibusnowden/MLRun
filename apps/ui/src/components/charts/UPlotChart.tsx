@@ -33,6 +33,14 @@ export interface UPlotChartProps {
   smoothing?: number;
   /** Callback when viewport changes */
   onViewportChange?: (min: number, max: number) => void;
+  /** Enable logarithmic Y-axis scale */
+  logScale?: boolean;
+  /** Minimum Y value (for clipping) */
+  yMin?: number;
+  /** Maximum Y value (for clipping) */
+  yMax?: number;
+  /** Show area fill under lines */
+  areaFill?: boolean;
 }
 
 // Vibrant color palette inspired by W&B
@@ -95,6 +103,10 @@ export function UPlotChart({
   showLegend = true,
   smoothing = 0,
   onViewportChange,
+  logScale = false,
+  yMin,
+  yMax,
+  areaFill = false,
 }: UPlotChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<uPlot | null>(null);
@@ -144,20 +156,25 @@ export function UPlotChart({
     // Prepare data: [xData, ...series.data]
     const data: uPlot.AlignedData = [xData, ...processedSeries.map((s) => s.data)];
 
-    // Build series config
+    // Build series config with optional area fill
     const seriesConfig: uPlot.Series[] = [
       { label: xLabel },
-      ...processedSeries.map((s, i) => ({
-        label: s.label,
-        stroke: s.color || colors[i % colors.length],
-        width: 2,
-        points: {
-          show: xData.length < 50,
-          size: 4,
-        },
-        // Add alpha for non-hovered series
-        alpha: hoveredSeries === null || hoveredSeries === i + 1 ? 1 : 0.3,
-      })),
+      ...processedSeries.map((s, i) => {
+        const color = s.color || colors[i % colors.length];
+        return {
+          label: s.label,
+          stroke: color,
+          width: 2,
+          points: {
+            show: xData.length < 50,
+            size: 4,
+          },
+          // Add alpha for non-hovered series
+          alpha: hoveredSeries === null || hoveredSeries === i + 1 ? 1 : 0.3,
+          // Area fill under line
+          fill: areaFill ? `${color}20` : undefined,
+        };
+      }),
     ];
 
     // Chart options with dark theme
@@ -168,38 +185,53 @@ export function UPlotChart({
       series: seriesConfig,
       scales: {
         x: { time: false },
+        y: {
+          distr: logScale ? 3 : 1, // 3 = logarithmic, 1 = linear
+          min: yMin,
+          max: yMax,
+        },
       },
       axes: [
         {
+          // X-axis (bottom)
           label: xLabel,
-          labelSize: 14,
-          labelFont: '12px Inter, system-ui, sans-serif',
-          font: '11px Inter, system-ui, sans-serif',
+          labelSize: 16,
+          labelFont: '11px Inter, system-ui, sans-serif',
+          font: '10px Inter, system-ui, sans-serif',
           stroke: axisColor,
+          size: 40, // Height for x-axis area (more space for labels)
+          gap: 5,
           grid: {
             show: true,
             stroke: gridColor,
             width: 1,
           },
           ticks: {
+            show: true,
             stroke: gridColor,
             width: 1,
+            size: 4,
           },
         },
         {
+          // Y-axis (left)
           label: yLabel,
-          labelSize: 14,
-          labelFont: '12px Inter, system-ui, sans-serif',
-          font: '11px Inter, system-ui, sans-serif',
+          labelSize: 16,
+          labelFont: '11px Inter, system-ui, sans-serif',
+          font: '10px Inter, system-ui, sans-serif',
           stroke: axisColor,
+          size: 50, // Width for y-axis area (more space for numbers)
+          gap: 5,
           grid: {
             show: true,
             stroke: gridColor,
             width: 1,
           },
           ticks: {
+            show: true,
             stroke: gridColor,
             width: 1,
+            size: 4,
           },
         },
       ],
@@ -239,7 +271,7 @@ export function UPlotChart({
         chartRef.current = null;
       }
     };
-  }, [xData, series, title, xLabel, yLabel, dimensions, interactive, onViewportChange, darkTheme, smoothing, colors, bgColor, gridColor, axisColor, textColor, hoveredSeries]);
+  }, [xData, series, title, xLabel, yLabel, dimensions, interactive, onViewportChange, darkTheme, smoothing, colors, bgColor, gridColor, axisColor, textColor, hoveredSeries, logScale, yMin, yMax, areaFill]);
 
   // Get last value for each series
   const getLastValue = useCallback((data: number[]): string => {
