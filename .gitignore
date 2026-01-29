@@ -1,15 +1,11 @@
-<<<<<<< HEAD
-**/skills.md
-=======
 # Project-specific ignores
 **/skills.md
 **/branches.md
 **/dev.md
 
 # Rust
-/target/
+target/
 **/*.rs.bk
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 
 # Python
 __pycache__/
@@ -17,32 +13,15 @@ __pycache__/
 *$py.class
 *.so
 .Python
-<<<<<<< HEAD
-build/
-dist/
-*.egg-info/
-.eggs/
-
-# Virtual environments
-.venv/
-venv/
-ENV/
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.mypy_cache/
-=======
-.venv/
-venv/
-ENV/
-env/
 .eggs/
 *.egg-info/
 *.egg
 dist/
 build/
+.venv/
+venv/
+ENV/
+env/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
@@ -62,28 +41,12 @@ out/
 .vercel
 .turbo/
 *.tsbuildinfo
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
-<<<<<<< HEAD
-
-# Rust
-target/
-Cargo.lock
-
-# Node.js / Next.js
-node_modules/
-.next/
-.turbo/
-*.tsbuildinfo
-
-# OS
-.DS_Store
-=======
 *~
 
 # Environment
@@ -114,12 +77,16 @@ Thumbs.db
 
 # Claude
 .claude/
->>>>>>> de683b6 (feat(core-001): complete monorepo scaffold)
 
 # Training outputs
 grpo_output/
 results/
+outputs/
 *.safetensors
 *.pt
 *.pth
 *.bin
+
+# Data
+data/
+sdks/python/data/
