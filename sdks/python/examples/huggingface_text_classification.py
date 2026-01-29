@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import mlrun
+from system_metrics import get_system_metrics, get_device_info
 
 # Check for HuggingFace availability
 try:
@@ -82,6 +83,9 @@ class MLRunCallback(TrainerCallback):
                 metrics[f"train/{key}"] = value
             else:
                 metrics[key] = value
+
+        # Add system metrics (GPU, CPU, memory)
+        metrics.update(get_system_metrics())
 
         if metrics:
             self.run.log(metrics, step=step)
@@ -180,6 +184,9 @@ def main() -> None:
             "num_eval_samples": num_eval_samples,
             "max_length": 128,
         })
+
+        # Log device/system info
+        run.log_params(get_device_info())
 
         # Load dataset
         print("Loading dataset...")

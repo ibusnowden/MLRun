@@ -15,6 +15,7 @@ import random
 import time
 
 import mlrun
+from system_metrics import get_system_metrics, get_device_info
 
 
 def simulate_training_step(step: int) -> tuple[float, float]:
@@ -59,6 +60,9 @@ def main() -> None:
         }
     )
 
+    # Log device/system info
+    run.log_params(get_device_info())
+
     # Training loop
     num_steps = 1000
     print(f"\nTraining for {num_steps} steps...")
@@ -69,7 +73,10 @@ def main() -> None:
         loss, accuracy = simulate_training_step(step)
 
         # Log metrics (non-blocking!)
-        run.log({"loss": loss, "accuracy": accuracy}, step=step)
+        metrics = {"loss": loss, "accuracy": accuracy}
+        # Add system metrics (GPU, CPU, memory)
+        metrics.update(get_system_metrics())
+        run.log(metrics, step=step)
 
         # Print progress
         if step % 100 == 0:
