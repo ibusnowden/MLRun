@@ -25,6 +25,7 @@ import argparse
 import sys
 
 import mlrun
+from system_metrics import get_system_metrics, get_device_info
 
 # Check for PyTorch availability
 try:
@@ -100,13 +101,13 @@ def train_epoch(
 
         # Log to MLRun (non-blocking)
         step = global_step + batch_idx
-        run.log(
-            {
-                "train/loss": loss.item(),
-                "train/accuracy": correct / total,
-            },
-            step=step,
-        )
+        metrics = {
+            "train/loss": loss.item(),
+            "train/accuracy": correct / total,
+        }
+        # Add system metrics (GPU, CPU, memory)
+        metrics.update(get_system_metrics())
+        run.log(metrics, step=step)
 
         # Print progress
         if batch_idx % log_interval == 0:
@@ -217,6 +218,9 @@ def main() -> None:
             "device": str(device),
             "seed": args.seed,
         })
+
+        # Log device/system info
+        run.log_params(get_device_info())
 
         # Model setup
         model = SimpleCNN().to(device)

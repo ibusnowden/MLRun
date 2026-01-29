@@ -37,6 +37,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import mlrun
+from system_metrics import get_system_metrics, get_device_info
 
 # Check dependencies
 MISSING_DEPS = []
@@ -72,7 +73,7 @@ class GRPOConfig:
     lora_dropout: float = 0.05
 
     # Training
-    max_steps: int = 10
+    max_steps: int = 15
     batch_size: int = 1
     gradient_accumulation_steps: int = 2
     learning_rate: float = 1e-5
@@ -658,6 +659,10 @@ class CustomGRPOTrainer:
 
             metrics["step_time"] = step_time
             metrics["step"] = step
+
+            # Add system metrics (GPU, CPU, memory)
+            metrics.update(get_system_metrics())
+
             all_metrics.append(metrics)
 
             # Log to MLRun
@@ -821,6 +826,9 @@ def main():
 
     # Log config
     run.log_params(config.to_dict())
+
+    # Log device/system info
+    run.log_params(get_device_info())
 
     # Setup
     model, tokenizer = setup_model_and_tokenizer(config)

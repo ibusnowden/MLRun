@@ -13,6 +13,13 @@ __pycache__/
 *$py.class
 *.so
 .Python
+<<<<<<< HEAD
+=======
+.venv/
+venv/
+ENV/
+env/
+>>>>>>> feature/research-dashboard
 .eggs/
 *.egg-info/
 *.egg
@@ -87,6 +94,12 @@ outputs/
 *.pth
 *.bin
 
+<<<<<<< HEAD
 # Data
 data/
 sdks/python/data/
+=======
+# Dataset downloads
+data/
+**/data/
+>>>>>>> feature/research-dashboard

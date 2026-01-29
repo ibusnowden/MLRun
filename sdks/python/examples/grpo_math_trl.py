@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import mlrun
+from system_metrics import get_system_metrics, get_device_info
 
 # Check dependencies
 MISSING_DEPS = []
@@ -207,6 +208,9 @@ class MLRunGRPOCallback(TrainerCallback):
                 # Clean up metric names for MLRun
                 clean_key = key.replace("/", "_")
                 metrics_to_log[clean_key] = value
+
+        # Add system metrics (GPU, CPU, memory)
+        metrics_to_log.update(get_system_metrics())
 
         if metrics_to_log:
             self.run.log(metrics_to_log, step=self.step)
@@ -410,6 +414,9 @@ def main():
 
     # Log configuration
     run.log_params(config.to_dict())
+
+    # Log device/system info
+    run.log_params(get_device_info())
 
     # Setup model and tokenizer
     model, tokenizer = setup_model_and_tokenizer(config)
