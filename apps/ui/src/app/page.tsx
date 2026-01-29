@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { RunsTable } from '@/components/RunsTable';
 import { Run } from '@/lib/api';
@@ -23,7 +24,9 @@ export default function Home() {
         {/* Runs Table */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-semibold mb-4">Runs</h2>
-          <RunsTable onRunClick={handleRunClick} />
+          <Suspense fallback={<div className="text-gray-500">Loading runs…</div>}>
+            <RunsTable onRunClick={handleRunClick} />
+          </Suspense>
         </div>
       </div>
     </main>

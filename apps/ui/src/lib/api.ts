@@ -29,6 +29,8 @@ export interface ListRunsResponse {
 export interface ListRunsParams {
   project?: string;
   status?: string;
+  query?: string;
+  tags?: string[];
   limit?: number;
   offset?: number;
 }
@@ -112,6 +114,8 @@ export const api = {
     const searchParams = new URLSearchParams();
     if (params.project) searchParams.set('project', params.project);
     if (params.status) searchParams.set('status', params.status);
+    if (params.query) searchParams.set('q', params.query);
+    if (params.tags?.length) searchParams.set('tags', params.tags.join(','));
     if (params.limit) searchParams.set('limit', params.limit.toString());
     if (params.offset) searchParams.set('offset', params.offset.toString());
 

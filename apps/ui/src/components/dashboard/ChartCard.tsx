@@ -115,11 +115,11 @@ export function ChartCard({
       }`}
     >
       {/* Header */}
-      <div className={`flex items-center justify-between px-4 py-3 border-b ${borderClass}`}>
+      <div className={`flex items-center justify-between px-4 py-2 border-b ${borderClass}`}>
         <div className="flex-1 min-w-0">
           <h3 className={`text-sm font-medium truncate ${textClass}`}>{title}</h3>
           {subtitle && (
-            <p className={`text-xs truncate mt-0.5 ${mutedTextClass}`}>{subtitle}</p>
+            <p className={`text-xs truncate mt-0 ${mutedTextClass}`}>{subtitle}</p>
           )}
         </div>
 
@@ -177,8 +177,8 @@ export function ChartCard({
         </div>
       </div>
 
-      {/* Chart content - taller aspect ratio for better axis visibility */}
-      <div className={`${isFullscreen ? 'h-[calc(100%-52px)]' : 'aspect-[4/3]'}`}>
+      {/* Chart content - let the plot define height for tighter fit */}
+      <div className={`${isFullscreen ? 'h-[calc(100%-48px)]' : ''}`}>
         {children}
       </div>
     </div>
