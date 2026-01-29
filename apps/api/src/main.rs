@@ -448,6 +448,10 @@ struct ListRunsQuery {
     project: Option<String>,
     /// Filter by run status
     status: Option<String>,
+    /// Free-text search query
+    q: Option<String>,
+    /// Comma-separated tag filters (key or key=value)
+    tags: Option<String>,
     /// Maximum number of runs to return
     limit: Option<usize>,
     /// Number of runs to skip
@@ -487,6 +491,29 @@ async fn http_list_runs(
 
     let limit = query.limit.unwrap_or(100).min(1000);
     let offset = query.offset.unwrap_or(0);
+    let query_terms: Vec<String> = query
+        .q
+        .as_deref()
+        .unwrap_or("")
+        .split_whitespace()
+        .filter(|term| !term.is_empty())
+        .map(|term| term.to_lowercase())
+        .collect();
+    let tag_filters: Vec<(String, Option<String>)> = query
+        .tags
+        .as_deref()
+        .unwrap_or("")
+        .split(',')
+        .filter(|entry| !entry.trim().is_empty())
+        .map(|entry| {
+            let trimmed = entry.trim();
+            if let Some((key, value)) = trimmed.split_once('=') {
+                (key.trim().to_lowercase(), Some(value.trim().to_lowercase()))
+            } else {
+                (trimmed.to_lowercase(), None)
+            }
+        })
+        .collect();
 
     // Filter runs
     let mut filtered_runs: Vec<_> = runs
@@ -501,6 +528,7 @@ async fn http_list_runs(
 
             // Filter by status
             if let Some(ref status) = query.status {
+                let status = status.to_lowercase();
                 let run_status = match run.status {
                     mlrun_proto::mlrun::v1::RunStatus::Running => "running",
                     mlrun_proto::mlrun::v1::RunStatus::Finished => "finished",
@@ -509,6 +537,50 @@ async fn http_list_runs(
                     _ => "pending",
                 };
                 if run_status != status {
+                    return false;
+                }
+            }
+
+            // Filter by tag (key or key=value)
+            if !tag_filters.is_empty() {
+                let matches_all_tags = tag_filters.iter().all(|(key, value)| {
+                    run.tags.iter().any(|(tag_key, tag_value)| {
+                        if tag_key.to_lowercase() != *key {
+                            return false;
+                        }
+                        value
+                            .as_ref()
+                            .map_or(true, |expected| tag_value.to_lowercase() == *expected)
+                    })
+                });
+
+                if !matches_all_tags {
+                    return false;
+                }
+            }
+
+            // Free-text search across run_id, name, project, and tags
+            if !query_terms.is_empty() {
+                let mut haystack = String::new();
+                haystack.push_str(&run.run_id);
+                haystack.push(' ');
+                if let Some(ref name) = run.name {
+                    haystack.push_str(name);
+                    haystack.push(' ');
+                }
+                haystack.push_str(&run.project_id);
+                for (tag_key, tag_value) in &run.tags {
+                    haystack.push(' ');
+                    haystack.push_str(tag_key);
+                    haystack.push(' ');
+                    haystack.push_str(tag_value);
+                }
+
+                let haystack = haystack.to_lowercase();
+                let matches_query = query_terms
+                    .iter()
+                    .all(|term| haystack.contains(term));
+                if !matches_query {
                     return false;
                 }
             }
